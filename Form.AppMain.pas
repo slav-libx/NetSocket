@@ -68,8 +68,8 @@ begin
 
   Request.Method:=METHOD_GET;
   Request.Protocol:=PROTOCOL_HTTP11;
-//  Request.Resource:='/api/transactions/2000';
-  Request.Resource:='/2.jpg';
+  Request.Resource:='/api/transactions/2000';
+//  Request.Resource:='/2.jpg';
   Request.Headers.AddValue('Host','185.182.193.15');
   Request.Headers.SetConnection(True,0);
 
@@ -136,8 +136,8 @@ begin
   if TSocketState.Connected in Socket.State then
     Socket.BeginSend(Request.Compose,SendEvent)
   else
-//  Socket.BeginConnect(ConnectEvent,TNetEndpoint.Create(185,182,193,15,80));
-  Socket.BeginConnect(ConnectEvent,TNetEndpoint.Create(127,0,0,1,80));
+  Socket.BeginConnect(ConnectEvent,TNetEndpoint.Create(185,182,193,15,80));
+//  Socket.BeginConnect(ConnectEvent,TNetEndpoint.Create(127,0,0,1,80));
 end;
 
 procedure TForm12.CloseSocket;
@@ -216,8 +216,8 @@ begin
   ToLog(Response.Headers.Text+#13);
   ToLog(Response.LocalResource);
   ToLog(Response.ResourceName);
-  TFile.WriteAllBytes('d:\121212.jpg',Response.Content);
-//  ToLog(TEncoding.ANSI.GetString(Response.Content));
+//  TFile.WriteAllBytes('d:\121212.jpg',Response.Content);
+  ToLog(TEncoding.ANSI.GetString(Response.Content));
 end;
 
 end.
