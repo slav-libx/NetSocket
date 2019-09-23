@@ -5,22 +5,44 @@ interface
 uses
   System.SysUtils,
   System.Types,
+  System.UIConsts,
   System.UITypes,
   System.Classes,
   System.Variants,
+  System.IOUtils,
   FMX.Types,
   FMX.Controls,
   FMX.Forms,
   FMX.Graphics,
   FMX.Dialogs,
-  System.Net.Socket;
+  System.Net.Socket, FMX.Controls.Presentation, FMX.ScrollBox, FMX.Memo,
+  Lib.HTTPConsts,
+  Lib.HTTPContent, FMX.StdCtrls, FMX.Objects;
 
 type
   TForm12 = class(TForm)
+    Memo1: TMemo;
+    Button1: TButton;
+    Button2: TButton;
+    Circle1: TCircle;
+    Button3: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
   private
     Socket: TSocket;
+    Request: TRequest;
+    Response: TResponse;
+    procedure CloseSocket;
+    procedure ConnectSocket;
+    procedure SetConnect(Active: Boolean);
+    procedure OnReadComplete(Sender: TObject);
+    procedure ToLog(const Message: string);
+    procedure ConnectEvent(const ASyncResult: IAsyncResult);
+    procedure SendEvent(const ASyncResult: IAsyncResult);
+    procedure ReceiveEvent(const ASyncResult: IAsyncResult);
   public
     { Public declarations }
   end;
@@ -35,71 +57,167 @@ implementation
 // https://docs.microsoft.com/ru-ru/dotnet/framework/network-programming/asynchronous-client-socket-example?view=netframework-4.8
 
 procedure TForm12.FormCreate(Sender: TObject);
-var
-LRecesiv: TBytes;
-S: string;
 begin
 
+  SetConnect(False);
+
+  Request:=TRequest.Create;
+
+  Response:=TResponse.Create;
+  Response.OnReadComplete:=OnReadComplete;
+
+  Request.Method:=METHOD_GET;
+  Request.Protocol:=PROTOCOL_HTTP11;
+//  Request.Resource:='/api/transactions/2000';
+  Request.Resource:='/2.jpg';
+  Request.Headers.AddValue('Host','185.182.193.15');
+  Request.Headers.SetConnection(True,0);
+
+//      'GET /api/transactions/2000 HTTP/1.1'#13#10+
+//      'Host: 185.182.193.15'#13#10+
+//      'Connection: keep-alive'#13#10+
+//      #13#10,SendEvent);
+
+//      'GET /2.jpg HTTP/1.1'#13#10+
+//      'Host: 185.182.193.15'#13#10+
+//      'Connection: keep-alive'#13#10+
+//      #13#10
+
   Socket:=TSocket.Create(TSocketType.TCP);
-
-  Socket.Connect(TNetEndpoint.Create(185,182,193,15,80));
-
-  Socket.Send(
-    'GET /api/transactions/2000 HTTP/1.1'#13#10+
-    'Host: 185.182.193.15'#13#10+
-    'Connection: keep-alive'#13#10+
-    #13#10);
-
-  Socket.BeginReceive(
-  procedure (const ASyncResult: IAsyncResult)
-  begin
-    //ASyncResult.AsyncContext;
-
-//    TSocket(ASyncResult.AsyncContext).Receive(LRecesiv);
-
-  Socket.Receive(LRecesiv);
-
-  S:=TEncoding.ANSI.GetString(LRecesiv);
-
-  end);
-
-
-//  LRecesiv);
-//
-//  Socket.Receive(LRecesiv);
-//
-//  S:=TEncoding.ANSI.GetString(LRecesiv);
-
-
-
-//    );
-//
-//
-//GET /900.jpg HTTP/1.1
-//Host: localhost
-//User-Agent: Mozilla/5.0 (Windows NT 6.1; rv:61.0) Gecko/20100101 Firefox/61.0
-//Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
-//Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3
-//Accept-Encoding: gzip, deflate
-//Connection: keep-alive
-//Upgrade-Insecure-Requests: 1
-
-//LBytes := [233, 123, 001, $FF];
-//    socket.Send﻿(LBytes);
-
-//    while True do //
-//    Begin
-//      if socket.Receive(LRecesiv) = 0 then
-//        Continue; // если ничего не пришло - опять запрашиваем инфу
-////      if LRecesiv = LBytes then
-////        socket.Send([66, 124]);
-//    End;
 
 end;
 
 procedure TForm12.FormDestroy(Sender: TObject);
 begin
   Socket.Free;
+  Request.Free;
+  Response.Free;
+end;
+
+procedure TForm12.ToLog(const Message: string);
+begin
+  TThread.Synchronize(nil,
+  procedure
+  begin
+    Memo1.Lines.Add(Message);
+  end);
+end;
+
+procedure TForm12.SetConnect(Active: Boolean);
+begin
+  TThread.Synchronize(nil,
+  procedure
+  begin
+    if Active then
+      Circle1.Fill.Color:=claGreen
+    else
+      Circle1.Fill.Color:=claRed;
+  end);
+
+end;
+
+procedure TForm12.Button1Click(Sender: TObject);
+begin
+  ConnectSocket;
+end;
+
+procedure TForm12.Button2Click(Sender: TObject);
+begin
+  CloseSocket;
+end;
+
+procedure TForm12.Button3Click(Sender: TObject);
+begin
+  Memo1.Lines.Clear;
+end;
+
+procedure TForm12.ConnectSocket;
+begin
+  if TSocketState.Connected in Socket.State then
+    Socket.BeginSend(Request.Compose,SendEvent)
+  else
+//  Socket.BeginConnect(ConnectEvent,TNetEndpoint.Create(185,182,193,15,80));
+  Socket.BeginConnect(ConnectEvent,TNetEndpoint.Create(127,0,0,1,80));
+end;
+
+procedure TForm12.CloseSocket;
+begin
+  if TSocketState.Connected in Socket.State then
+  begin
+    Socket.Close;
+    SetConnect(False);
+  end;
+end;
+
+procedure TForm12.ConnectEvent(const ASyncResult: IAsyncResult);
+begin
+
+  try
+
+    Socket.EndConnect(ASyncResult);
+
+    SetConnect(True);
+
+    ToLog('Socket connected to '+Socket.RemoteAddress);
+
+    Socket.BeginSend(Request.Compose,SendEvent);
+
+    Socket.BeginReceive(ReceiveEvent);
+
+  except on E: Exception do
+    ToLog(E.Message);
+  end;
+
+end;
+
+procedure TForm12.SendEvent(const ASyncResult: IAsyncResult);
+var C: Integer;
+begin
+
+  try
+
+    C:=Socket.EndSend(ASyncResult);
+
+    ToLog('Sent '+C.ToString+' bytes to server.');
+
+  except on E: Exception do
+    ToLog(E.Message);
+  end;
+
+end;
+
+procedure TForm12.ReceiveEvent(const ASyncResult: IAsyncResult);
+var ReceiveBytes: TBytes;
+begin
+
+  try
+
+    ReceiveBytes:=Socket.EndReceiveBytes(ASyncResult);
+
+    if Length(ReceiveBytes)=0 then
+      CloseSocket
+    else begin
+
+      Response.DoRead(ReceiveBytes);
+
+      Socket.BeginReceive(ReceiveEvent);
+
+    end;
+
+  except on E: Exception do
+    ToLog(E.Message);
+  end;
+
+end;
+
+procedure TForm12.OnReadComplete(Sender: TObject);
+begin
+  ToLog(Response.ResultCode.ToString+' '+Response.ResultText);
+  ToLog(Response.Headers.Text+#13);
+  ToLog(Response.LocalResource);
+  ToLog(Response.ResourceName);
+  TFile.WriteAllBytes('d:\121212.jpg',Response.Content);
+//  ToLog(TEncoding.ANSI.GetString(Response.Content));
 end;
 
 end.
