@@ -15,9 +15,14 @@ uses
   FMX.Forms,
   FMX.Graphics,
   FMX.Dialogs,
-  System.Net.Socket, FMX.Controls.Presentation, FMX.ScrollBox, FMX.Memo,
+  System.Net.Socket,
+  FMX.Controls.Presentation,
+  FMX.ScrollBox,
+  FMX.Memo,
   Lib.HTTPConsts,
-  Lib.HTTPContent, FMX.StdCtrls, FMX.Objects;
+  Lib.HTTPContent,
+  FMX.StdCtrls,
+  FMX.Objects;
 
 type
   TForm12 = class(TForm)
