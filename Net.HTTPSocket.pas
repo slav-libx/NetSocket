@@ -18,7 +18,7 @@ type
     FResponse: TResponse;
     FOnCompleted: TNotifyEvent;
     procedure OnReadComplete(Sender: TObject);
-    procedure DoHTTPGet;
+    procedure SendRequest;
   protected
     procedure DoAfterConnect; override;
     procedure DoReceived; override;
@@ -62,17 +62,22 @@ begin
   Request.Headers.AddValue('Host',URI.Host);
   Request.Headers.SetConnection(True,0);
 
-  if not (TSocketState.Connected in State) then
+  if not Connected then
     ConnectTo(URI.Host,URI.Port)
   else
-    DoHTTPGet;
+    SendRequest;
 
 end;
 
 procedure THTTPSocket.DoAfterConnect;
 begin
   inherited;
-  DoHTTPGet;
+  SendRequest;
+end;
+
+procedure THTTPSocket.SendRequest;
+begin
+  Send(Request.Compose);
 end;
 
 procedure THTTPSocket.DoReceived;
@@ -83,12 +88,8 @@ end;
 
 procedure THTTPSocket.OnReadComplete(Sender: TObject);
 begin
+  Response.Merge(Request);
   if Assigned(FOnCompleted) then FOnCompleted(Self);
-end;
-
-procedure THTTPSocket.DoHTTPGet;
-begin
-  Send(Request.Compose);
 end;
 
 end.

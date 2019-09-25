@@ -44,7 +44,6 @@ type
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
     procedure Button5Click(Sender: TObject);
-    procedure ComboBox1Change(Sender: TObject);
   private
     HTTPSocket: THTTPSocket;
     procedure OnConnect(Sender: TObject);
@@ -79,6 +78,13 @@ begin
   ComboBox1.Items.Add('http://185.182.193.15/api/node/?identity=BFC9AA5719DE2F25E5E8A7FE5D21C95B');
   ComboBox1.Items.Add('http://www.ancestryimages.com/stockimages/sm0112-Essex-Moule-l.jpg');
   ComboBox1.Items.Add('http://www.ancestryimages.com/stockimages/sm0004-WorldKitchin1777.jpg');
+  ComboBox1.Items.Add('http://www.picshare.ru/images/upload_but.png');
+  ComboBox1.Items.Add('http://krasivie-kartinki.ru/images/dragocennosti_25_small.jpg');
+  ComboBox1.Items.Add('http://i.artfile.ru/1366x768_1477274_[www.ArtFile.ru].jpg');
+  ComboBox1.Items.Add('http://zagony.ru/admin_new/foto/2012-4-23/1335176695/chastnye_fotografii_devushek_100_foto_31.jpg');
+  ComboBox1.Items.Add('http://localhost/2.jpg');
+  ComboBox1.Items.Add('http://localhost/9.jpg');
+  ComboBox1.Items.Add('http://history-maps.ru/pictures/max/0/1764.jpg');
 
   ComboBox1.ItemIndex:=2;
 
@@ -116,19 +122,13 @@ begin
   Image1.Bitmap.Assign(nil);
   TabControl1.ActiveTab:=TabItem1;
 
-  HTTPSocket.Get(ComboBox1.Items[ComboBox1.ItemIndex]); // 'http://185.182.193.15/api/node/?identity=BFC9AA5719DE2F25E5E8A7FE5D21C95B');
+  HTTPSocket.Disconnect;
 
-//  HTTPSocket.Get('http://www.ancestryimages.com/stockimages/sm0112-Essex-Moule-l.jpg');
-//  HTTPSocket.Get('http://65.99.251.252/stockimages/sm0112-Essex-Moule-l.jpg');
+  HTTPSocket.Get(ComboBox1.Items[ComboBox1.ItemIndex]);
 
 end;
 
 procedure TForm12.Button5Click(Sender: TObject);
-begin
-  HTTPSocket.Disconnect;
-end;
-
-procedure TForm12.ComboBox1Change(Sender: TObject);
 begin
   HTTPSocket.Disconnect;
 end;
@@ -154,21 +154,27 @@ procedure TForm12.OnCompleted(Sender: TObject);
 begin
 
   ToLog(HTTPSocket.Response.ResultCode.ToString+' '+HTTPSocket.Response.ResultText);
-  ToLog(HTTPSocket.Response.Headers.Text+#13);
-//  ToLog(HTTPSocket.Response.LocalResource);
-//  ToLog(HTTPSocket.Response.ResourceName);
+  ToLog(HTTPSocket.Response.Headers.Text);
 
-//  ToLog(TEncoding.ANSI.GetString(HTTPSocket.Response.Content));
+  var ContentType:=HTTPSocket.Response.Headers.ContentType;
 
-//    TFile.WriteAllBytes('d:\121212.jpg',HTTPSocket.Response.Content);
+  if ContentType.StartsWith('image') then
+  begin
 
-  var S:=TBytesStream.Create(HTTPSocket.Response.Content);
-  try
-    Image1.Bitmap.LoadFromStream(S);
-    TabControl1.ActiveTab:=TabItem2;
-  finally
-    S.Free;
-  end;
+    var Stream:=TBytesStream.Create(HTTPSocket.Response.Content);
+
+    try
+      Image1.Bitmap.LoadFromStream(Stream);
+      TabControl1.ActiveTab:=TabItem2;
+    finally
+      Stream.Free;
+    end;
+
+  end else
+
+  if ContentType.StartsWith('text') or ContentType.EndsWith('json') then
+
+    ToLog(TEncoding.ANSI.GetString(HTTPSocket.Response.Content));
 
 end;
 

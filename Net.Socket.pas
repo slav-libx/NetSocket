@@ -22,6 +22,7 @@ type
     FException: Exception;
   protected
     ReceivedBytes: TBytes;
+    function Connected: Boolean;
     procedure DoConnect; override;
     procedure DoAfterConnect; virtual;
     procedure DoReceived; virtual;
@@ -47,15 +48,15 @@ begin
   inherited Create(TSocketType.TCP);
 end;
 
-//function host_isip(const Host: string): Boolean;
-//begin
-//  case inet_addr(PAnsiChar(AnsiString(Host))) of
-//  INADDR_NONE,0: Result:=False;
-//  else
-//    Result:=Length(Host.Split(['.']))=4;
-//  end;
-//end;
+procedure TTCPSocket.Disconnect;
+begin
+  if Connected then Close;
+end;
 
+function TTCPSocket.Connected: Boolean;
+begin
+  Result:=TSocketState.Connected in State;
+end;
 
 procedure TTCPSocket.ConnectTo(const Address: string; Port: Word);
 begin
@@ -66,52 +67,15 @@ begin
   begin
 
     try
+
       Connect(TNetEndpoint.Create(TIPAddress.Create(Address),Port));
-    except
-    on E: Exception do DoExcept(E);
+
+    except on E: Exception do
+
+      DoExcept(E);
+
     end;
 
-  end);
-
-end;
-
-procedure TTCPSocket.Disconnect;
-begin
-  if TSocketState.Connected in State then Close;
-end;
-
-procedure TTCPSocket.DoAfterConnect;
-begin
-
-  if Assigned(FOnConnect) then
-
-  TThread.Synchronize(nil,
-  procedure
-  begin
-    FOnConnect(Self);
-  end);
-
-end;
-
-procedure TTCPSocket.DoReceived;
-begin
-
-  if Assigned(FOnReceived) then FOnReceived(Self,ReceivedBytes);
-
-end;
-
-procedure TTCPSocket.DoClose;
-begin
-
-  if TSocketState.Connected in State then
-    Close;
-
-  if Assigned(FOnClose) then
-
-  TThread.Synchronize(nil,
-  procedure
-  begin
-    FOnClose(Self);
   end);
 
 end;
@@ -120,6 +84,7 @@ procedure TTCPSocket.DoConnect;
 begin
 
   TTask.Run(
+
   procedure
   begin
 
@@ -134,15 +99,14 @@ begin
       procedure
       begin
 
-        while (TSocketState.Connected in State) and (WaitForData=wrSignaled) do
+        while Connected and (WaitForData=wrSignaled) do
 
         try
 
           TThread.Synchronize(nil,
+
           procedure
           begin
-
-            Receive(ReceivedBytes);
 
             DoReceived;
 
@@ -150,17 +114,62 @@ begin
 
           if Length(ReceivedBytes)=0 then Break;
 
-        except
-        on E: Exception do DoExcept(E);
+        except on E: Exception do
+
+          DoExcept(E);
+
         end;
 
         DoClose;
 
       end);
 
-    except
-    on E: Exception do DoExcept(E);
+    except on E: Exception do
+
+      DoExcept(E);
+
     end;
+
+  end);
+
+end;
+
+procedure TTCPSocket.DoAfterConnect;
+begin
+
+  if Assigned(FOnConnect) then
+
+  TThread.Synchronize(nil,
+
+  procedure
+  begin
+
+    FOnConnect(Self);
+
+  end);
+
+end;
+
+procedure TTCPSocket.DoReceived;
+begin
+
+  Receive(ReceivedBytes);
+
+  if Assigned(FOnReceived) then FOnReceived(Self,ReceivedBytes);
+
+end;
+
+procedure TTCPSocket.DoClose;
+begin
+
+  TThread.Synchronize(nil,
+
+  procedure
+  begin
+
+    Disconnect;
+
+    if Assigned(FOnClose) then FOnClose(Self);
 
   end);
 
@@ -172,6 +181,7 @@ begin
   if Assigned(FOnExcept) then
 
   TThread.Synchronize(nil,
+
   procedure
   begin
     FException:=E;
