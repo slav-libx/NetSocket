@@ -7,7 +7,8 @@ uses
   Lib.HTTPConsts in 'http\Lib.HTTPConsts.pas',
   Lib.HTTPContent in 'http\Lib.HTTPContent.pas',
   Lib.HTTPHeaders in 'http\Lib.HTTPHeaders.pas',
-  Lib.HTTPUtils in 'http\Lib.HTTPUtils.pas';
+  Lib.HTTPUtils in 'http\Lib.HTTPUtils.pas',
+  Net.Socket in 'Net.Socket.pas';
 
 {$R *.res}
 

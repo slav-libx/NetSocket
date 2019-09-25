@@ -2,8 +2,8 @@ object Form12: TForm12
   Left = 0
   Top = 0
   Caption = 'Form12'
-  ClientHeight = 480
-  ClientWidth = 640
+  ClientHeight = 383
+  ClientWidth = 537
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
@@ -16,26 +16,12 @@ object Form12: TForm12
     TextSettings.WordWrap = True
     Position.X = 24.000000000000000000
     Position.Y = 16.000000000000000000
-    Size.Width = 593.000000000000000000
+    Size.Width = 481.000000000000000000
     Size.Height = 289.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 1
-    Viewport.Width = 589.000000000000000000
+    Viewport.Width = 477.000000000000000000
     Viewport.Height = 285.000000000000000000
-  end
-  object Button1: TButton
-    Position.X = 56.000000000000000000
-    Position.Y = 320.000000000000000000
-    TabOrder = 2
-    Text = 'Button1'
-    OnClick = Button1Click
-  end
-  object Button2: TButton
-    Position.X = 176.000000000000000000
-    Position.Y = 320.000000000000000000
-    TabOrder = 3
-    Text = 'Button2'
-    OnClick = Button2Click
   end
   object Circle1: TCircle
     Position.X = 312.000000000000000000
@@ -45,10 +31,24 @@ object Form12: TForm12
     Size.PlatformDefault = False
   end
   object Button3: TButton
-    Position.X = 440.000000000000000000
+    Position.X = 424.000000000000000000
     Position.Y = 320.000000000000000000
-    TabOrder = 6
+    TabOrder = 4
     Text = 'Button3'
     OnClick = Button3Click
+  end
+  object Button4: TButton
+    Position.X = 56.000000000000000000
+    Position.Y = 320.000000000000000000
+    TabOrder = 5
+    Text = 'Button4'
+    OnClick = Button4Click
+  end
+  object Button5: TButton
+    Position.X = 176.000000000000000000
+    Position.Y = 320.000000000000000000
+    TabOrder = 6
+    Text = 'Button5'
+    OnClick = Button5Click
   end
 end

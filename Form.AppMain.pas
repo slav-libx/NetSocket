@@ -10,46 +10,46 @@ uses
   System.Classes,
   System.Variants,
   System.IOUtils,
+  System.Net.Socket,
   FMX.Types,
   FMX.Controls,
   FMX.Forms,
   FMX.Graphics,
   FMX.Dialogs,
-  System.Net.Socket,
   FMX.Controls.Presentation,
   FMX.ScrollBox,
   FMX.Memo,
   Lib.HTTPConsts,
   Lib.HTTPContent,
   FMX.StdCtrls,
-  FMX.Objects;
+  FMX.Objects,
+  Net.Socket;
 
 type
   TForm12 = class(TForm)
     Memo1: TMemo;
-    Button1: TButton;
-    Button2: TButton;
     Circle1: TCircle;
     Button3: TButton;
+    Button4: TButton;
+    Button5: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
+    procedure Button5Click(Sender: TObject);
   private
-    Socket: TSocket;
+    TCPSocket: TTCPSocket;
     Request: TRequest;
     Response: TResponse;
-    procedure CloseSocket;
-    procedure ConnectSocket;
+    procedure OnConnect(Sender: TObject);
+    procedure OnClose(Sender: TObject);
+    procedure OnExcept(Sender: TObject; E: Exception);
+    procedure OnReceived(Sender: TObject; const Bytes: TBytes);
     procedure SetConnect(Active: Boolean);
     procedure OnReadComplete(Sender: TObject);
     procedure ToLog(const Message: string);
-    procedure ConnectEvent(const ASyncResult: IAsyncResult);
-    procedure SendEvent(const ASyncResult: IAsyncResult);
-    procedure ReceiveEvent(const ASyncResult: IAsyncResult);
+    procedure DoHTTPGet;
   public
-    { Public declarations }
   end;
 
 var
@@ -73,62 +73,39 @@ begin
 
   Request.Method:=METHOD_GET;
   Request.Protocol:=PROTOCOL_HTTP11;
-  Request.Resource:='/api/transactions/2000';
-//  Request.Resource:='/2.jpg';
+//  Request.Resource:='/api/transactions/2000';
+  Request.Resource:='/2.jpg';
   Request.Headers.AddValue('Host','185.182.193.15');
   Request.Headers.SetConnection(True,0);
 
-//      'GET /api/transactions/2000 HTTP/1.1'#13#10+
-//      'Host: 185.182.193.15'#13#10+
-//      'Connection: keep-alive'#13#10+
-//      #13#10,SendEvent);
-
-//      'GET /2.jpg HTTP/1.1'#13#10+
-//      'Host: 185.182.193.15'#13#10+
-//      'Connection: keep-alive'#13#10+
-//      #13#10
-
-  Socket:=TSocket.Create(TSocketType.TCP);
+  TCPSocket:=TTCPSocket.Create;
+  TCPSocket.OnConnect:=OnConnect;
+  TCPSocket.OnClose:=OnClose;
+  TCPSocket.OnReceived:=OnReceived;
+  TCPSocket.OnExcept:=OnExcept;
 
 end;
 
 procedure TForm12.FormDestroy(Sender: TObject);
 begin
-  Socket.Free;
+  TCPSocket.Free;
   Request.Free;
   Response.Free;
 end;
 
 procedure TForm12.ToLog(const Message: string);
 begin
-  TThread.Synchronize(nil,
-  procedure
-  begin
+  if not Application.Terminated then
     Memo1.Lines.Add(Message);
-  end);
 end;
 
 procedure TForm12.SetConnect(Active: Boolean);
 begin
-  TThread.Synchronize(nil,
-  procedure
-  begin
-    if Active then
-      Circle1.Fill.Color:=claGreen
-    else
-      Circle1.Fill.Color:=claRed;
-  end);
-
-end;
-
-procedure TForm12.Button1Click(Sender: TObject);
-begin
-  ConnectSocket;
-end;
-
-procedure TForm12.Button2Click(Sender: TObject);
-begin
-  CloseSocket;
+  if not Application.Terminated then
+  if Active then
+    Circle1.Fill.Color:=claGreen
+  else
+    Circle1.Fill.Color:=claRed;
 end;
 
 procedure TForm12.Button3Click(Sender: TObject);
@@ -136,83 +113,50 @@ begin
   Memo1.Lines.Clear;
 end;
 
-procedure TForm12.ConnectSocket;
+procedure TForm12.Button4Click(Sender: TObject);
 begin
-  if TSocketState.Connected in Socket.State then
-    Socket.BeginSend(Request.Compose,SendEvent)
+
+  if not (TSocketState.Connected in TCPSocket.State) then
+    TCPSocket.Connect(TNetEndpoint.Create(127,0,0,1,80))
   else
-  Socket.BeginConnect(ConnectEvent,TNetEndpoint.Create(185,182,193,15,80));
-//  Socket.BeginConnect(ConnectEvent,TNetEndpoint.Create(127,0,0,1,80));
-end;
-
-procedure TForm12.CloseSocket;
-begin
-  if TSocketState.Connected in Socket.State then
-  begin
-    Socket.Close;
-    SetConnect(False);
-  end;
-end;
-
-procedure TForm12.ConnectEvent(const ASyncResult: IAsyncResult);
-begin
-
-  try
-
-    Socket.EndConnect(ASyncResult);
-
-    SetConnect(True);
-
-    ToLog('Socket connected to '+Socket.RemoteAddress);
-
-    Socket.BeginSend(Request.Compose,SendEvent);
-
-    Socket.BeginReceive(ReceiveEvent);
-
-  except on E: Exception do
-    ToLog(E.Message);
-  end;
+    DoHTTPGet;
 
 end;
 
-procedure TForm12.SendEvent(const ASyncResult: IAsyncResult);
-var C: Integer;
+procedure TForm12.Button5Click(Sender: TObject);
+begin
+  if TSocketState.Connected in TCPSocket.State then
+    TCPSocket.Close;
+end;
+
+procedure TForm12.OnConnect(Sender: TObject);
 begin
 
-  try
+  SetConnect(True);
 
-    C:=Socket.EndSend(ASyncResult);
+  ToLog('Connected to '+TCPSocket.RemoteAddress);
 
-    ToLog('Sent '+C.ToString+' bytes to server.');
-
-  except on E: Exception do
-    ToLog(E.Message);
-  end;
+  DoHTTPGet;
 
 end;
 
-procedure TForm12.ReceiveEvent(const ASyncResult: IAsyncResult);
-var ReceiveBytes: TBytes;
+procedure TForm12.OnClose(Sender: TObject);
 begin
 
-  try
+  SetConnect(False);
 
-    ReceiveBytes:=Socket.EndReceiveBytes(ASyncResult);
+  ToLog('Disconnected');
 
-    if Length(ReceiveBytes)=0 then
-      CloseSocket
-    else begin
+end;
 
-      Response.DoRead(ReceiveBytes);
+procedure TForm12.OnExcept(Sender: TObject; E: Exception);
+begin
+  ToLog(E.Message);
+end;
 
-      Socket.BeginReceive(ReceiveEvent);
-
-    end;
-
-  except on E: Exception do
-    ToLog(E.Message);
-  end;
-
+procedure TForm12.OnReceived(Sender: TObject; const Bytes: TBytes);
+begin
+  Response.DoRead(Bytes);
 end;
 
 procedure TForm12.OnReadComplete(Sender: TObject);
@@ -221,8 +165,18 @@ begin
   ToLog(Response.Headers.Text+#13);
   ToLog(Response.LocalResource);
   ToLog(Response.ResourceName);
-//  TFile.WriteAllBytes('d:\121212.jpg',Response.Content);
-  ToLog(TEncoding.ANSI.GetString(Response.Content));
+  TFile.WriteAllBytes('d:\121212.jpg',Response.Content);
+//  ToLog(TEncoding.ANSI.GetString(Response.Content));
+end;
+
+procedure TForm12.DoHTTPGet;
+var C: Integer;
+begin
+
+  C:=TCPSocket.Send(Request.Compose);
+
+  ToLog('Send '+C.ToString+' bytes');
+
 end;
 
 end.
