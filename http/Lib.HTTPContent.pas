@@ -191,7 +191,7 @@ begin
     if FHeaderLength>0 then
     begin
 
-      Headers.Text:=TEncoding.Default.GetString(Content,0,FHeaderLength);
+      Headers.Text:=TEncoding.ANSI.GetString(Content,0,FHeaderLength);
 
       DoHeader;
 
