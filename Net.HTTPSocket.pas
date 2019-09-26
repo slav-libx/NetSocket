@@ -14,12 +14,10 @@ uses
 type
   THTTPSocket = class(TTCPSocket)
   private
-    FCompleted: Boolean;
     FRequest: TRequest;
     FResponse: TResponse;
     FOnCompleted: TNotifyEvent;
     procedure OnReadComplete(Sender: TObject);
-    procedure SendRequest;
   protected
     procedure DoAfterConnect; override;
     procedure DoReceived; override;
@@ -55,11 +53,6 @@ begin
 
   URI.Create(URL);
 
-  if not FCompleted or (Request.Headers.GetValue('Host')<>URI.Host) then
-    Disconnect;
-
-  FCompleted:=False;
-
   Request.Reset;
 
   Request.Method:=METHOD_GET;
@@ -70,20 +63,11 @@ begin
 
   Response.Reset;
 
-  if not Connected then
-    ConnectTo(URI.Host,URI.Port)
-  else
-    SendRequest;
+  ConnectTo(URI.Host,URI.Port);
 
 end;
 
 procedure THTTPSocket.DoAfterConnect;
-begin
-  inherited;
-  SendRequest;
-end;
-
-procedure THTTPSocket.SendRequest;
 begin
   Send(Request.Compose);
 end;
@@ -100,7 +84,6 @@ procedure THTTPSocket.OnReadComplete(Sender: TObject);
 begin
   Response.Merge(Request);
   if Assigned(FOnCompleted) then FOnCompleted(Self);
-  FCompleted:=True;
 end;
 
 end.

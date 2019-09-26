@@ -4,6 +4,7 @@ object Form12: TForm12
   Caption = 'Form12'
   ClientHeight = 442
   ClientWidth = 315
+  Position = ScreenCenter
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
@@ -88,8 +89,8 @@ object Form12: TForm12
         Size.Height = 311.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 0
-        Viewport.Width = 297.000000000000000000
-        Viewport.Height = 311.000000000000000000
+        Viewport.Width = 293.000000000000000000
+        Viewport.Height = 307.000000000000000000
       end
     end
     object TabItem2: TTabItem

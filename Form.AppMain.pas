@@ -85,6 +85,16 @@ begin
   ComboBox1.Items.Add('http://localhost/2.jpg');
   ComboBox1.Items.Add('http://localhost/9.jpg');
   ComboBox1.Items.Add('http://history-maps.ru/pictures/max/0/1764.jpg');
+  ComboBox1.Items.Add('http://zagony.ru/admin_new/foto/2019-9-23/1569240641/festival_piva_oktoberfest2019_v_mjunkhene_22_foto_14.jpg');
+  ComboBox1.Items.Add('');
+  ComboBox1.Items.Add('');
+  ComboBox1.Items.Add('');
+  ComboBox1.Items.Add('');
+  ComboBox1.Items.Add('');
+  ComboBox1.Items.Add('');
+  ComboBox1.Items.Add('');
+  ComboBox1.Items.Add('');
+  ComboBox1.Items.Add('');
 
   ComboBox1.ItemIndex:=2;
 
@@ -98,7 +108,10 @@ end;
 procedure TForm12.ToLog(const Message: string);
 begin
   if not Application.Terminated then
+  begin
     Memo1.Lines.Add(Message);
+    Memo1.ScrollBy(0,Memo1.ContentBounds.Height-Memo1.ViewportPosition.Y);
+  end;
 end;
 
 procedure TForm12.SetConnect(Active: Boolean);
@@ -134,18 +147,18 @@ end;
 procedure TForm12.OnConnect(Sender: TObject);
 begin
   SetConnect(True);
-  ToLog('Connected to '+HTTPSocket.RemoteAddress+#13);
+  ToLog('Connected to '+HTTPSocket.RemoteAddress+#13#10);
 end;
 
 procedure TForm12.OnClose(Sender: TObject);
 begin
   SetConnect(False);
-  ToLog('Disconnected'#13);
+  ToLog('Disconnected'#13#10);
 end;
 
 procedure TForm12.OnExcept(Sender: TObject);
 begin
-  ToLog(HTTPSocket.E.Message);
+  ToLog(HTTPSocket.E.Message+#13#10);
 end;
 
 procedure TForm12.OnCompleted(Sender: TObject);
@@ -172,7 +185,7 @@ begin
 
   if ContentType.StartsWith('text') or ContentType.EndsWith('json') then
 
-    ToLog(TEncoding.ANSI.GetString(HTTPSocket.Response.Content));
+    ToLog(TEncoding.ANSI.GetString(HTTPSocket.Response.Content)+#13#10);
 
 end;
 
