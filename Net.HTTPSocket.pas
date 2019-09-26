@@ -14,6 +14,7 @@ uses
 type
   THTTPSocket = class(TTCPSocket)
   private
+    FCompleted: Boolean;
     FRequest: TRequest;
     FResponse: TResponse;
     FOnCompleted: TNotifyEvent;
@@ -54,6 +55,11 @@ begin
 
   URI.Create(URL);
 
+  if not FCompleted or (Request.Headers.GetValue('Host')<>URI.Host) then
+    Disconnect;
+
+  FCompleted:=False;
+
   Request.Reset;
 
   Request.Method:=METHOD_GET;
@@ -61,6 +67,8 @@ begin
   Request.Resource:=URI.Path;
   Request.Headers.AddValue('Host',URI.Host);
   Request.Headers.SetConnection(True,0);
+
+  Response.Reset;
 
   if not Connected then
     ConnectTo(URI.Host,URI.Port)
@@ -81,15 +89,18 @@ begin
 end;
 
 procedure THTTPSocket.DoReceived;
+var Bytes: TBytes;
 begin
   inherited;
-  Response.DoRead(ReceivedBytes);
+  Receive(Bytes);
+  Response.DoRead(Bytes);
 end;
 
 procedure THTTPSocket.OnReadComplete(Sender: TObject);
 begin
   Response.Merge(Request);
   if Assigned(FOnCompleted) then FOnCompleted(Self);
+  FCompleted:=True;
 end;
 
 end.

@@ -11,17 +11,14 @@ uses
 
 type
 
-  TReceivedEvent = procedure (Sender: TObject; const Bytes: TBytes) of object;
-
   TTCPSocket = class(TSocket)
   private
     FOnConnect: TNotifyEvent;
     FOnClose: TNotifyEvent;
-    FOnReceived: TReceivedEvent;
+    FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
   protected
-    ReceivedBytes: TBytes;
     function Connected: Boolean;
     procedure DoConnect; override;
     procedure DoAfterConnect; virtual;
@@ -35,7 +32,7 @@ type
     property E: Exception read FException;
     property OnConnect: TNotifyEvent read FOnConnect write FOnConnect;
     property OnClose: TNotifyEvent read FOnClose write FOnClose;
-    property OnReceived: TReceivedEvent read FOnReceived write FOnReceived;
+    property OnReceived: TNotifyEvent read FOnReceived write FOnReceived;
     property OnExcept: TNotifyEvent read FOnExcept write FOnExcept;
   end;
 
@@ -107,20 +104,14 @@ begin
 
           procedure
           begin
-
-            DoReceived;
-
+            if ReceiveLength>0 then DoReceived else DoClose;
           end);
-
-          if Length(ReceivedBytes)=0 then Break;
 
         except on E: Exception do
 
           DoExcept(E);
 
         end;
-
-        DoClose;
 
       end);
 
@@ -143,9 +134,7 @@ begin
 
   procedure
   begin
-
     FOnConnect(Self);
-
   end);
 
 end;
@@ -153,9 +142,7 @@ end;
 procedure TTCPSocket.DoReceived;
 begin
 
-  Receive(ReceivedBytes);
-
-  if Assigned(FOnReceived) then FOnReceived(Self,ReceivedBytes);
+  if Assigned(FOnReceived) then FOnReceived(Self);
 
 end;
 
@@ -166,11 +153,8 @@ begin
 
   procedure
   begin
-
     Disconnect;
-
     if Assigned(FOnClose) then FOnClose(Self);
-
   end);
 
 end;

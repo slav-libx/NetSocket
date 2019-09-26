@@ -122,8 +122,6 @@ begin
   Image1.Bitmap.Assign(nil);
   TabControl1.ActiveTab:=TabItem1;
 
-  HTTPSocket.Disconnect;
-
   HTTPSocket.Get(ComboBox1.Items[ComboBox1.ItemIndex]);
 
 end;
@@ -136,13 +134,13 @@ end;
 procedure TForm12.OnConnect(Sender: TObject);
 begin
   SetConnect(True);
-  ToLog('Connected to '+HTTPSocket.RemoteAddress);
+  ToLog('Connected to '+HTTPSocket.RemoteAddress+#13);
 end;
 
 procedure TForm12.OnClose(Sender: TObject);
 begin
   SetConnect(False);
-  ToLog('Disconnected');
+  ToLog('Disconnected'#13);
 end;
 
 procedure TForm12.OnExcept(Sender: TObject);
