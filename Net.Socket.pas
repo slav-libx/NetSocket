@@ -22,6 +22,7 @@ type
     function Connected: Boolean;
     procedure DoConnect; override;
     procedure DoAfterConnect; virtual;
+    procedure DoConnected; virtual;
     procedure DoReceived; virtual;
     procedure DoClose; virtual;
     procedure DoExcept(E: Exception); virtual;
@@ -55,17 +56,31 @@ begin
   Result:=TSocketState.Connected in State;
 end;
 
+function CompareEndpoints(const EndPoint1,EndPoint2: TNetEndpoint): Boolean;
+begin
+  Result:=(EndPoint1.Address.Address=EndPoint2.Address.Address) and
+    (EndPoint1.Port=EndPoint2.Port);
+end;
+
 procedure TTCPSocket.ConnectTo(const Address: string; Port: Word);
 begin
 
   TTask.Run(
 
   procedure
+  var NetEndpoint: TNetEndpoint;
   begin
 
     try
 
-      Connect(TNetEndpoint.Create(TIPAddress.Create(Address),Port));
+      NetEndpoint:=TNetEndpoint.Create(TIPAddress.Create(Address),Port);
+
+      if Connected and CompareEndpoints(NetEndpoint,Endpoint) then
+        DoAfterConnect
+      else begin
+        Disconnect;
+        Connect(NetEndpoint);
+      end;
 
     except on E: Exception do
 
@@ -89,22 +104,22 @@ begin
 
       inherited;
 
-      DoAfterConnect;
-
       TTask.Run(
 
       procedure
+      var ConnectionLost: Boolean;
       begin
 
-        while Connected and (WaitForData=wrSignaled) do
+        ConnectionLost:=False;
 
+        while Connected and not ConnectionLost and (WaitForData=wrSignaled) do
         try
 
           TThread.Synchronize(nil,
 
           procedure
           begin
-            if ReceiveLength>0 then DoReceived else DoClose;
+            if ReceiveLength>0 then DoReceived else ConnectionLost:=True;
           end);
 
         except on E: Exception do
@@ -113,7 +128,13 @@ begin
 
         end;
 
+        DoClose;
+
       end);
+
+      DoConnected;
+
+      DoAfterConnect;
 
     except on E: Exception do
 
@@ -126,6 +147,11 @@ begin
 end;
 
 procedure TTCPSocket.DoAfterConnect;
+begin
+
+end;
+
+procedure TTCPSocket.DoConnected;
 begin
 
   if Assigned(FOnConnect) then
@@ -153,7 +179,7 @@ begin
 
   procedure
   begin
-    Disconnect;
+    if Connected then Close;
     if Assigned(FOnClose) then FOnClose(Self);
   end);
 
