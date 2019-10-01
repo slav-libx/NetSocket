@@ -1,6 +1,8 @@
 object Form12: TForm12
   Left = 0
   Top = 0
+  BorderIcons = [biSystemMenu]
+  BorderStyle = Single
   Caption = 'Form12'
   ClientHeight = 442
   ClientWidth = 315
@@ -52,75 +54,6 @@ object Form12: TForm12
     Text = 'Disconnect'
     OnClick = Button5Click
   end
-  object TabControl1: TTabControl
-    Anchors = [akLeft, akTop, akRight, akBottom]
-    Position.X = 8.000000000000000000
-    Position.Y = 8.000000000000000000
-    Size.Width = 297.000000000000000000
-    Size.Height = 337.000000000000000000
-    Size.PlatformDefault = False
-    TabIndex = 1
-    TabOrder = 6
-    TabPosition = PlatformDefault
-    Sizes = (
-      297s
-      311s
-      297s
-      311s)
-    object TabItem1: TTabItem
-      CustomIcon = <
-        item
-        end>
-      IsSelected = False
-      Size.Width = 63.000000000000000000
-      Size.Height = 26.000000000000000000
-      Size.PlatformDefault = False
-      StyleLookup = ''
-      TabOrder = 0
-      Text = 'Request'
-      ExplicitSize.cx = 63.000000000000000000
-      ExplicitSize.cy = 26.000000000000000000
-      object Memo1: TMemo
-        Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-        DataDetectorTypes = []
-        TextSettings.WordWrap = True
-        Align = Client
-        Size.Width = 297.000000000000000000
-        Size.Height = 311.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 0
-        Viewport.Width = 293.000000000000000000
-        Viewport.Height = 307.000000000000000000
-      end
-    end
-    object TabItem2: TTabItem
-      CustomIcon = <
-        item
-        end>
-      IsSelected = True
-      Size.Width = 63.000000000000000000
-      Size.Height = 26.000000000000000000
-      Size.PlatformDefault = False
-      StyleLookup = ''
-      TabOrder = 0
-      Text = 'Content'
-      ExplicitSize.cx = 63.000000000000000000
-      ExplicitSize.cy = 26.000000000000000000
-      object Image1: TImage
-        MultiResBitmap = <
-          item
-          end>
-        Align = Client
-        Margins.Left = 1.000000000000000000
-        Margins.Top = 1.000000000000000000
-        Margins.Right = 1.000000000000000000
-        Margins.Bottom = 1.000000000000000000
-        Size.Width = 295.000000000000000000
-        Size.Height = 309.000000000000000000
-        Size.PlatformDefault = False
-      end
-    end
-  end
   object ComboBox1: TComboBox
     Anchors = [akLeft, akRight, akBottom]
     Position.X = 8.000000000000000000
@@ -128,6 +61,42 @@ object Form12: TForm12
     Size.Width = 297.000000000000000000
     Size.Height = 22.000000000000000000
     Size.PlatformDefault = False
+    TabOrder = 6
+  end
+  object Layout1: TLayout
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    Position.X = 8.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 297.000000000000000000
+    Size.Height = 337.000000000000000000
+    Size.PlatformDefault = False
     TabOrder = 7
+    object Image1: TImage
+      MultiResBitmap = <
+        item
+        end>
+      Align = Top
+      Margins.Left = 1.000000000000000000
+      Margins.Top = 1.000000000000000000
+      Margins.Right = 1.000000000000000000
+      Margins.Bottom = 1.000000000000000000
+      Position.X = 1.000000000000000000
+      Position.Y = 1.000000000000000000
+      Size.Width = 295.000000000000000000
+      Size.Height = 168.000000000000000000
+      Size.PlatformDefault = False
+    end
+    object Memo1: TMemo
+      Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+      DataDetectorTypes = []
+      TextSettings.WordWrap = True
+      Align = Client
+      Size.Width = 297.000000000000000000
+      Size.Height = 167.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      Viewport.Width = 293.000000000000000000
+      Viewport.Height = 163.000000000000000000
+    end
   end
 end

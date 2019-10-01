@@ -259,7 +259,7 @@ begin
 
   end;
 
-  if FState=stNone then DoComplete; //загрузка ресурса завершена
+  if FState=stNone then DoComplete;
 
   DoRead(Over);
 

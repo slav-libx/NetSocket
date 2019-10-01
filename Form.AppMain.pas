@@ -34,11 +34,9 @@ type
     Button3: TButton;
     Button4: TButton;
     Button5: TButton;
-    TabControl1: TTabControl;
-    TabItem1: TTabItem;
-    TabItem2: TTabItem;
     ComboBox1: TComboBox;
     Image1: TImage;
+    Layout1: TLayout;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button3Click(Sender: TObject);
@@ -65,6 +63,8 @@ implementation
 procedure TForm12.FormCreate(Sender: TObject);
 begin
 
+  Image1.Visible:=False;
+
   SetConnect(False);
 
   HTTPSocket:=THTTPSocket.Create;
@@ -86,11 +86,6 @@ begin
   ComboBox1.Items.Add('http://localhost/9.jpg');
   ComboBox1.Items.Add('http://history-maps.ru/pictures/max/0/1764.jpg');
   ComboBox1.Items.Add('http://zagony.ru/admin_new/foto/2019-9-23/1569240641/festival_piva_oktoberfest2019_v_mjunkhene_22_foto_14.jpg');
-  ComboBox1.Items.Add('');
-  ComboBox1.Items.Add('');
-  ComboBox1.Items.Add('');
-  ComboBox1.Items.Add('');
-  ComboBox1.Items.Add('');
   ComboBox1.Items.Add('');
   ComboBox1.Items.Add('');
   ComboBox1.Items.Add('');
@@ -133,7 +128,7 @@ procedure TForm12.Button4Click(Sender: TObject);
 begin
 
   Image1.Bitmap.Assign(nil);
-  TabControl1.ActiveTab:=TabItem1;
+  Image1.Visible:=False;
 
   HTTPSocket.Get(ComboBox1.Items[ComboBox1.ItemIndex]);
 
@@ -176,7 +171,7 @@ begin
 
     try
       Image1.Bitmap.LoadFromStream(Stream);
-      TabControl1.ActiveTab:=TabItem2;
+      Image1.Visible:=True;
     finally
       Stream.Free;
     end;
