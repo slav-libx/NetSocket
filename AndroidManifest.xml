@@ -24,7 +24,8 @@
         android:largeHeap="False"
         android:icon="@drawable/ic_launcher"
         android:theme="@style/AppTheme"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:resizeableActivity="false">
 
         
         

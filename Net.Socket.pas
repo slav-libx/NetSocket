@@ -5,6 +5,7 @@ interface
 uses
   System.Types,
   System.SysUtils,
+  System.RTLConsts,
   System.Classes,
   System.Threading,
   System.Net.Socket;
@@ -18,6 +19,7 @@ type
     FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
+    procedure AfterConnect;
   protected
     function Connected: Boolean;
     procedure DoConnect; override;
@@ -28,7 +30,7 @@ type
     procedure DoExcept(E: Exception); virtual;
   public
     constructor Create; virtual;
-    procedure ConnectTo(const Address: string; Port: Word);
+    procedure Connect(const Address: string; Port: Word); overload;
     procedure Disconnect;
     property E: Exception read FException;
     property OnConnect: TNotifyEvent read FOnConnect write FOnConnect;
@@ -52,8 +54,18 @@ begin
 end;
 
 function TTCPSocket.Connected: Boolean;
+var AConnected: Boolean;
 begin
-  Result:=TSocketState.Connected in State;
+
+  TThread.Synchronize(nil,
+
+  procedure
+  begin
+    AConnected:=TSocketState.Connected in State;
+  end);
+
+  Result:=AConnected;
+
 end;
 
 function CompareEndpoints(const EndPoint1,EndPoint2: TNetEndpoint): Boolean;
@@ -62,7 +74,7 @@ begin
     (EndPoint1.Port=EndPoint2.Port);
 end;
 
-procedure TTCPSocket.ConnectTo(const Address: string; Port: Word);
+procedure TTCPSocket.Connect(const Address: string; Port: Word);
 begin
 
   TTask.Run(
@@ -76,7 +88,7 @@ begin
       NetEndpoint:=TNetEndpoint.Create(TIPAddress.Create(Address),Port);
 
       if Connected and CompareEndpoints(NetEndpoint,Endpoint) then
-        DoAfterConnect
+        AfterConnect
       else begin
         Disconnect;
         Connect(NetEndpoint);
@@ -134,7 +146,7 @@ begin
 
       DoConnected;
 
-      DoAfterConnect;
+      AfterConnect;
 
     except on E: Exception do
 
@@ -142,6 +154,18 @@ begin
 
     end;
 
+  end);
+
+end;
+
+procedure TTCPSocket.AfterConnect;
+begin
+
+  TThread.Synchronize(nil,
+
+  procedure
+  begin
+    DoAfterConnect;
   end);
 
 end;

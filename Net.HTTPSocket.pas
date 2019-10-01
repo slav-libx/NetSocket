@@ -19,6 +19,7 @@ type
     FOnCompleted: TNotifyEvent;
     procedure OnReadComplete(Sender: TObject);
   protected
+    procedure DoConnected; override;
     procedure DoAfterConnect; override;
     procedure DoReceived; override;
   public
@@ -61,14 +62,21 @@ begin
   Request.Headers.AddValue('Host',URI.Host);
   Request.Headers.SetConnection(True,0);
 
+  Connect(URI.Host,URI.Port);
+
+end;
+
+procedure THTTPSocket.DoConnected;
+begin
+  inherited;
   Response.Reset;
-
-  ConnectTo(URI.Host,URI.Port);
-
 end;
 
 procedure THTTPSocket.DoAfterConnect;
 begin
+  Send(Request.Compose); exit;
+  Send(Request.Compose);
+  Send(Request.Compose);
   Send(Request.Compose);
 end;
 

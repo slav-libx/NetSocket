@@ -109,6 +109,8 @@ end;
 
 procedure TContent.Reset;
 begin
+  FState:=stNone;
+  FHeaderLength:=0;
   FContentReaded:=0;
   FContentLength:=0;
   FContentType:='';
@@ -163,8 +165,10 @@ begin
 end;
 
 function TContent.DoRead(const B: TBytes): Integer;
-var L: Integer;
+var L: Integer; Over: TBytes;
 begin
+
+  Over:=nil;
 
   Result:=Length(B);
 
@@ -218,8 +222,16 @@ begin
 
     if FContentReaded>=FContentLength then
     begin
+
+      if FContentReaded>FContentLength then
+      begin
+        Over:=Copy(Content,FContentLength,FContentReaded-FContentLength);
+        SetLength(Content,FContentLength);
+      end;
+
       DoContent;
       FState:=stNone;
+
     end;
 
   end;
@@ -248,6 +260,8 @@ begin
   end;
 
   if FState=stNone then DoComplete; //загрузка ресурса завершена
+
+  DoRead(Over);
 
 end;
 
