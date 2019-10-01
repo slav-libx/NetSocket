@@ -19,8 +19,8 @@ type
     FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
-    procedure AfterConnect;
   protected
+    function ConnectedSync: Boolean;
     function Connected: Boolean;
     procedure DoConnect; override;
     procedure DoAfterConnect; virtual;
@@ -53,7 +53,7 @@ begin
   if Connected then Close;
 end;
 
-function TTCPSocket.Connected: Boolean;
+function TTCPSocket.ConnectedSync: Boolean;
 var AConnected: Boolean;
 begin
 
@@ -61,11 +61,16 @@ begin
 
   procedure
   begin
-    AConnected:=TSocketState.Connected in State;
+    AConnected:=Connected;
   end);
 
   Result:=AConnected;
 
+end;
+
+function TTCPSocket.Connected: Boolean;
+begin
+  Result:=TSocketState.Connected in State;
 end;
 
 function CompareEndpoints(const EndPoint1,EndPoint2: TNetEndpoint): Boolean;
@@ -87,12 +92,19 @@ begin
 
       NetEndpoint:=TNetEndpoint.Create(TIPAddress.Create(Address),Port);
 
-      if Connected and CompareEndpoints(NetEndpoint,Endpoint) then
-        AfterConnect
-      else begin
-        Disconnect;
-        Connect(NetEndpoint);
-      end;
+      TThread.Synchronize(nil,
+
+      procedure
+      begin
+
+        if Connected and CompareEndpoints(NetEndpoint,Endpoint) then
+          DoAfterConnect
+        else begin
+          Disconnect;
+          Connect(NetEndpoint);
+        end;
+
+      end);
 
     except on E: Exception do
 
@@ -122,10 +134,11 @@ begin
       var ConnectionLost: Boolean;
       begin
 
-        ConnectionLost:=False;
-
-        while Connected and not ConnectionLost and (WaitForData=wrSignaled) do
         try
+
+          ConnectionLost:=False;
+
+          while not ConnectionLost and ConnectedSync and (WaitForData=wrSignaled) do
 
           TThread.Synchronize(nil,
 
@@ -134,19 +147,30 @@ begin
             if ReceiveLength>0 then DoReceived else ConnectionLost:=True;
           end);
 
+          TThread.Synchronize(nil,
+
+          procedure
+          begin
+            DoClose;
+          end);
+
         except on E: Exception do
 
           DoExcept(E);
 
         end;
 
-        DoClose;
-
       end);
 
-      DoConnected;
+      TThread.Synchronize(nil,
 
-      AfterConnect;
+      procedure
+      begin
+
+        DoConnected;
+        DoAfterConnect;
+
+      end);
 
     except on E: Exception do
 
@@ -154,18 +178,6 @@ begin
 
     end;
 
-  end);
-
-end;
-
-procedure TTCPSocket.AfterConnect;
-begin
-
-  TThread.Synchronize(nil,
-
-  procedure
-  begin
-    DoAfterConnect;
   end);
 
 end;
@@ -178,14 +190,7 @@ end;
 procedure TTCPSocket.DoConnected;
 begin
 
-  if Assigned(FOnConnect) then
-
-  TThread.Synchronize(nil,
-
-  procedure
-  begin
-    FOnConnect(Self);
-  end);
+  if Assigned(FOnConnect) then FOnConnect(Self);
 
 end;
 
@@ -199,13 +204,8 @@ end;
 procedure TTCPSocket.DoClose;
 begin
 
-  TThread.Synchronize(nil,
-
-  procedure
-  begin
-    if Connected then Close;
-    if Assigned(FOnClose) then FOnClose(Self);
-  end);
+  if Connected then Close;
+  if Assigned(FOnClose) then FOnClose(Self);
 
 end;
 

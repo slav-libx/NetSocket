@@ -25,6 +25,7 @@ uses
   FMX.ExtCtrls,
   FMX.TabControl,
   FMX.ListBox,
+  Net.Socket,
   Net.HTTPSocket;
 
 type
@@ -37,19 +38,45 @@ type
     ComboBox1: TComboBox;
     Image1: TImage;
     Layout1: TLayout;
+    Splitter1: TSplitter;
+    TabControl1: TTabControl;
+    TabItem1: TTabItem;
+    TabItem2: TTabItem;
+    Layout2: TLayout;
+    Memo2: TMemo;
+    Layout3: TLayout;
+    Button1: TButton;
+    Circle2: TCircle;
+    Button2: TButton;
+    Button6: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
     procedure Button5Click(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button6Click(Sender: TObject);
   private
     HTTPSocket: THTTPSocket;
+    FResponseIndex: Integer;
     procedure OnConnect(Sender: TObject);
     procedure OnClose(Sender: TObject);
     procedure OnExcept(Sender: TObject);
     procedure OnCompleted(Sender: TObject);
     procedure SetConnect(Active: Boolean);
     procedure ToLog(const Message: string);
+    procedure ScrollLogToBottom;
+    procedure ShowBitmap;
+    procedure HideBitmap;
+  private
+    TCPSocket: TTCPSocket;
+    procedure OnTCPConnect(Sender: TObject);
+    procedure OnTCPReceived(Sender: TObject);
+    procedure OnTCPClose(Sender: TObject);
+    procedure OnTCPExcept(Sender: TObject);
+    procedure ToTCPLog(const Message: string);
+    procedure ScrollTCPLogToBottom;
   public
   end;
 
@@ -63,13 +90,21 @@ implementation
 procedure TForm12.FormCreate(Sender: TObject);
 begin
 
-  Image1.Visible:=False;
+  Button3Click(nil);
 
   SetConnect(False);
 
-  HTTPSocket:=THTTPSocket.Create;
+  TCPSocket:=TTCPSocket.Create;
+
+  TCPSocket.Encoding:=TEncoding.ANSI;
+
+  TCPSocket.OnConnect:=OnTCPConnect;
+  TCPSocket.OnReceived:=OnTCPReceived;
+  TCPSocket.OnClose:=OnTCPClose;
+  TCPSocket.OnExcept:=OnTCPExcept;
 
   HTTPSocket:=THTTPSocket.Create;
+
   HTTPSocket.OnConnect:=OnConnect;
   HTTPSocket.OnClose:=OnClose;
   HTTPSocket.OnExcept:=OnExcept;
@@ -97,7 +132,13 @@ end;
 
 procedure TForm12.FormDestroy(Sender: TObject);
 begin
+  TCPSocket.Free;
   HTTPSocket.Free;
+end;
+
+procedure TForm12.ScrollLogToBottom;
+begin
+  Memo1.ScrollBy(0,Memo1.ContentBounds.Height-Memo1.ViewportPosition.Y);
 end;
 
 procedure TForm12.ToLog(const Message: string);
@@ -105,8 +146,23 @@ begin
   if not Application.Terminated then
   begin
     Memo1.Lines.Add(Message);
-    Memo1.ScrollBy(0,Memo1.ContentBounds.Height-Memo1.ViewportPosition.Y);
+    ScrollLogToBottom;
   end;
+end;
+
+procedure TForm12.ShowBitmap;
+begin
+  Image1.Visible:=True;
+  Splitter1.Visible:=True;
+  ScrollLogToBottom;
+end;
+
+procedure TForm12.HideBitmap;
+begin
+  Splitter1.Visible:=False;
+  Image1.Bitmap.Assign(nil);
+  Image1.Visible:=False;
+  ScrollLogToBottom;
 end;
 
 procedure TForm12.SetConnect(Active: Boolean);
@@ -120,18 +176,15 @@ end;
 
 procedure TForm12.Button3Click(Sender: TObject);
 begin
+  FResponseIndex:=0;
   Memo1.Lines.Clear;
-  Image1.Bitmap.Assign(nil);
+  HideBitmap;
 end;
 
 procedure TForm12.Button4Click(Sender: TObject);
 begin
-
   Image1.Bitmap.Assign(nil);
-  Image1.Visible:=False;
-
   HTTPSocket.Get(ComboBox1.Items[ComboBox1.ItemIndex]);
-
 end;
 
 procedure TForm12.Button5Click(Sender: TObject);
@@ -159,6 +212,9 @@ end;
 procedure TForm12.OnCompleted(Sender: TObject);
 begin
 
+  Inc(FResponseIndex);
+
+  ToLog('---'+FResponseIndex.ToString+'---');
   ToLog(HTTPSocket.Response.ResultCode.ToString+' '+HTTPSocket.Response.ResultText);
   ToLog(HTTPSocket.Response.Headers.Text);
 
@@ -171,17 +227,74 @@ begin
 
     try
       Image1.Bitmap.LoadFromStream(Stream);
-      Image1.Visible:=True;
+      ShowBitmap;
     finally
       Stream.Free;
     end;
 
-  end else
+  end else begin
 
-  if ContentType.StartsWith('text') or ContentType.EndsWith('json') then
+    HideBitmap;
 
-    ToLog(TEncoding.ANSI.GetString(HTTPSocket.Response.Content)+#13#10);
+    if ContentType.StartsWith('text') or ContentType.EndsWith('json') then
 
+      ToLog(TEncoding.ANSI.GetString(HTTPSocket.Response.Content)+#13#10);
+
+  end;
+
+end;
+
+// TCP
+
+procedure TForm12.ToTCPLog(const Message: string);
+begin
+  if not Application.Terminated then
+  begin
+    Memo2.Lines.Add(Message);
+    ScrollTCPLogToBottom;
+  end;
+end;
+
+procedure TForm12.ScrollTCPLogToBottom;
+begin
+  Memo2.ScrollBy(0,Memo2.ContentBounds.Height-Memo2.ViewportPosition.Y);
+end;
+
+procedure TForm12.Button1Click(Sender: TObject);
+begin
+  TCPSocket.Connect('185.182.193.17',5555);
+end;
+
+procedure TForm12.OnTCPConnect(Sender: TObject);
+begin
+  Circle2.Fill.Color:=claGreen;
+  ToTCPLog('Connected to '+TCPSocket.RemoteAddress+#13#10);
+end;
+
+procedure TForm12.OnTCPReceived(Sender: TObject);
+begin
+  ToTCPLog(TCPSocket.ReceiveString+#13#10);
+end;
+
+procedure TForm12.OnTCPClose(Sender: TObject);
+begin
+  if not Application.Terminated then
+  Circle2.Fill.Color:=claRed;
+end;
+
+procedure TForm12.OnTCPExcept(Sender: TObject);
+begin
+  ToTCPLog(TCPSocket.E.Message+#13#10);
+end;
+
+procedure TForm12.Button2Click(Sender: TObject);
+begin
+  TCPSocket.Disconnect;
+end;
+
+procedure TForm12.Button6Click(Sender: TObject);
+begin
+  Memo2.Lines.Clear;
 end;
 
 end.
