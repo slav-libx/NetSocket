@@ -262,7 +262,7 @@ end;
 
 procedure TForm12.Button1Click(Sender: TObject);
 begin
-  TCPSocket.Connect('185.182.193.17',5555);
+  TCPSocket.Connect('185.182.193.15',5555);
 end;
 
 procedure TForm12.OnTCPConnect(Sender: TObject);
