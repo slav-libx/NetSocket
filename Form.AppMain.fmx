@@ -170,8 +170,8 @@ object Form12: TForm12
         Size.Height = 496.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
-        Viewport.Width = 342.000000000000000000
-        Viewport.Height = 496.000000000000000000
+        Viewport.Width = 338.000000000000000000
+        Viewport.Height = 492.000000000000000000
       end
       object Layout3: TLayout
         Align = Bottom

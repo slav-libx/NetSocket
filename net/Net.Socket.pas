@@ -26,7 +26,7 @@ type
     procedure DoAfterConnect; virtual;
     procedure DoConnected; virtual;
     procedure DoReceived; virtual;
-    procedure DoClose; virtual;
+    procedure DoClose;
     procedure DoExcept(E: Exception); virtual;
   public
     constructor Create; virtual;
@@ -204,7 +204,7 @@ end;
 procedure TTCPSocket.DoClose;
 begin
 
-  if Connected then Close;
+//  if Connected then Close;
   if Assigned(FOnClose) then FOnClose(Self);
 
 end;

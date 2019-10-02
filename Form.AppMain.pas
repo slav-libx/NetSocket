@@ -279,7 +279,10 @@ end;
 procedure TForm12.OnTCPClose(Sender: TObject);
 begin
   if not Application.Terminated then
-  Circle2.Fill.Color:=claRed;
+  begin
+    Circle2.Fill.Color:=claRed;
+    ToTCPLog('Disconnected'#13#10);
+  end;
 end;
 
 procedure TForm12.OnTCPExcept(Sender: TObject);
