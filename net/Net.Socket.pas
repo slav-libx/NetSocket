@@ -131,26 +131,32 @@ begin
       TTask.Run(
 
       procedure
-      var ConnectionLost: Boolean;
+//      var ConnectionLost: Boolean;
       begin
 
         try
 
-          ConnectionLost:=False;
+//          ConnectionLost:=False;
 
-          while not ConnectionLost and ConnectedSync and (WaitForData=wrSignaled) do
+          while {not ConnectionLost and} ConnectedSync and (WaitForData=wrSignaled) do
 
           TThread.Synchronize(nil,
 
           procedure
           begin
-            if ReceiveLength>0 then DoReceived else ConnectionLost:=True;
+            if ReceiveLength>0 then DoReceived else
+            begin
+//              ConnectionLost:=True;
+              if Connected then Close;
+            end;
+
           end);
 
           TThread.Synchronize(nil,
 
           procedure
           begin
+//            if Connected then Close;
             DoClose;
           end);
 
@@ -204,7 +210,6 @@ end;
 procedure TTCPSocket.DoClose;
 begin
 
-//  if Connected then Close;
   if Assigned(FOnClose) then FOnClose(Self);
 
 end;
