@@ -88,6 +88,8 @@ begin
   var NetEndpoint: TNetEndpoint;
   begin
 
+    TMonitor.Enter(Self);
+
     try
 
       NetEndpoint:=TNetEndpoint.Create(TIPAddress.Create(Address),Port);
@@ -97,12 +99,15 @@ begin
       procedure
       begin
 
-        if Connected and CompareEndpoints(NetEndpoint,Endpoint) then
-          DoAfterConnect
-        else begin
-          Disconnect;
+        if Connected then
+          if CompareEndpoints(NetEndpoint,Endpoint) then
+            DoAfterConnect
+          else begin
+            Disconnect;
+            Connect(NetEndpoint);
+          end
+        else
           Connect(NetEndpoint);
-        end;
 
       end);
 
@@ -111,6 +116,8 @@ begin
       DoExcept(E);
 
     end;
+
+    TMonitor.Exit(Self);
 
   end);
 
@@ -124,6 +131,8 @@ begin
   procedure
   begin
 
+    TMonitor.Enter(Self);
+
     try
 
       inherited;
@@ -131,33 +140,18 @@ begin
       TTask.Run(
 
       procedure
-//      var ConnectionLost: Boolean;
       begin
 
         try
 
-//          ConnectionLost:=False;
-
-          while {not ConnectionLost and} ConnectedSync and (WaitForData=wrSignaled) do
+          while ConnectedSync and (WaitForData=wrSignaled) do
 
           TThread.Synchronize(nil,
 
           procedure
           begin
-            if ReceiveLength>0 then DoReceived else
-            begin
-//              ConnectionLost:=True;
-              if Connected then Close;
-            end;
-
-          end);
-
-          TThread.Synchronize(nil,
-
-          procedure
-          begin
-//            if Connected then Close;
-            DoClose;
+            if ReceiveLength>0 then DoReceived
+            else Disconnect;
           end);
 
         except on E: Exception do
@@ -165,6 +159,14 @@ begin
           DoExcept(E);
 
         end;
+
+        TThread.Synchronize(nil,
+
+        procedure
+        begin
+          Disconnect;
+          DoClose;
+        end);
 
       end);
 
@@ -184,13 +186,14 @@ begin
 
     end;
 
+    TMonitor.Exit(Self);
+
   end);
 
 end;
 
 procedure TTCPSocket.DoAfterConnect;
 begin
-
 end;
 
 procedure TTCPSocket.DoConnected;

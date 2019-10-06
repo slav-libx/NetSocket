@@ -17,7 +17,7 @@ object Form12: TForm12
     Size.Width = 342.000000000000000000
     Size.Height = 590.000000000000000000
     Size.PlatformDefault = False
-    TabIndex = 1
+    TabIndex = 0
     TabOrder = 3
     TabPosition = PlatformDefault
     Sizes = (
@@ -29,8 +29,8 @@ object Form12: TForm12
       CustomIcon = <
         item
         end>
-      IsSelected = False
-      Size.Width = 49.000000000000000000
+      IsSelected = True
+      Size.Width = 48.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
       StyleLookup = ''
@@ -84,8 +84,8 @@ object Form12: TForm12
           Size.Height = 290.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 1
-          Viewport.Width = 322.000000000000000000
-          Viewport.Height = 290.000000000000000000
+          Viewport.Width = 318.000000000000000000
+          Viewport.Height = 286.000000000000000000
         end
         object Splitter1: TSplitter
           Align = Bottom
@@ -152,8 +152,8 @@ object Form12: TForm12
       CustomIcon = <
         item
         end>
-      IsSelected = True
-      Size.Width = 40.000000000000000000
+      IsSelected = False
+      Size.Width = 41.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
       StyleLookup = ''

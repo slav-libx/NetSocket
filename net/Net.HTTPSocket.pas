@@ -74,7 +74,6 @@ end;
 
 procedure THTTPSocket.DoAfterConnect;
 begin
-  //for var C in [1..10] do  // test
   Send(Request.Compose);
 end;
 

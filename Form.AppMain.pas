@@ -64,6 +64,7 @@ type
     procedure OnClose(Sender: TObject);
     procedure OnExcept(Sender: TObject);
     procedure OnCompleted(Sender: TObject);
+    procedure OnLog(const S: string);
     procedure SetConnect(Active: Boolean);
     procedure ToLog(const Message: string);
     procedure ScrollLogToBottom;
@@ -185,6 +186,7 @@ procedure TForm12.Button4Click(Sender: TObject);
 begin
   Image1.Bitmap.Assign(nil);
   HTTPSocket.Get(ComboBox1.Items[ComboBox1.ItemIndex]);
+  //HTTPSocket.Get(ComboBox1.Items[ComboBox1.ItemIndex]);
 end;
 
 procedure TForm12.Button5Click(Sender: TObject);
@@ -192,21 +194,26 @@ begin
   HTTPSocket.Disconnect;
 end;
 
+procedure TForm12.OnLog(const S: string);
+begin
+  ToLog(S);
+end;
+
 procedure TForm12.OnConnect(Sender: TObject);
 begin
   SetConnect(True);
-  ToLog('Connected to '+HTTPSocket.RemoteAddress+#13#10);
+  ToLog('Connected to '+HTTPSocket.Endpoint.Address.Address);
 end;
 
 procedure TForm12.OnClose(Sender: TObject);
 begin
   SetConnect(False);
-  ToLog('Disconnected'#13#10);
+  ToLog('Disconnected');
 end;
 
 procedure TForm12.OnExcept(Sender: TObject);
 begin
-  ToLog(HTTPSocket.E.Message+#13#10);
+  ToLog(HTTPSocket.E.Message);
 end;
 
 procedure TForm12.OnCompleted(Sender: TObject);
@@ -238,7 +245,7 @@ begin
 
     if ContentType.StartsWith('text') or ContentType.EndsWith('json') then
 
-      ToLog(TEncoding.ANSI.GetString(HTTPSocket.Response.Content)+#13#10);
+      ToLog(TEncoding.ANSI.GetString(HTTPSocket.Response.Content));
 
   end;
 
