@@ -64,7 +64,6 @@ type
     procedure OnClose(Sender: TObject);
     procedure OnExcept(Sender: TObject);
     procedure OnCompleted(Sender: TObject);
-    procedure OnLog(const S: string);
     procedure SetConnect(Active: Boolean);
     procedure ToLog(const Message: string);
     procedure ScrollLogToBottom;
@@ -93,16 +92,16 @@ begin
 
   Button3Click(nil);
 
-  SetConnect(False);
+  Circle1.Fill.Color:=claRed;
 
-  TCPSocket:=TTCPSocket.Create;
-
-  TCPSocket.Encoding:=TEncoding.ANSI;
-
-  TCPSocket.OnConnect:=OnTCPConnect;
-  TCPSocket.OnReceived:=OnTCPReceived;
-  TCPSocket.OnClose:=OnTCPClose;
-  TCPSocket.OnExcept:=OnTCPExcept;
+//  TCPSocket:=TTCPSocket.Create;
+//
+//  TCPSocket.Encoding:=TEncoding.ANSI;
+//
+//  TCPSocket.OnConnect:=OnTCPConnect;
+//  TCPSocket.OnReceived:=OnTCPReceived;
+//  TCPSocket.OnClose:=OnTCPClose;
+//  TCPSocket.OnExcept:=OnTCPExcept;
 
   HTTPSocket:=THTTPSocket.Create;
 
@@ -133,7 +132,7 @@ end;
 
 procedure TForm12.FormDestroy(Sender: TObject);
 begin
-  TCPSocket.Free;
+//  TCPSocket.Free;
   HTTPSocket.Free;
 end;
 
@@ -170,9 +169,13 @@ procedure TForm12.SetConnect(Active: Boolean);
 begin
   if not Application.Terminated then
   if Active then
-    Circle1.Fill.Color:=claGreen
-  else
+  begin
+    Circle1.Fill.Color:=claGreen;
+    ToLog('Connected ['+HTTPSocket.Handle.ToString+'] to '+HTTPSocket.Endpoint.Address.Address);
+  end else begin
     Circle1.Fill.Color:=claRed;
+    ToLog('Disconnected');
+  end;
 end;
 
 procedure TForm12.Button3Click(Sender: TObject);
@@ -194,21 +197,14 @@ begin
   HTTPSocket.Disconnect;
 end;
 
-procedure TForm12.OnLog(const S: string);
-begin
-  ToLog(S);
-end;
-
 procedure TForm12.OnConnect(Sender: TObject);
 begin
   SetConnect(True);
-  ToLog('Connected to '+HTTPSocket.Endpoint.Address.Address);
 end;
 
 procedure TForm12.OnClose(Sender: TObject);
 begin
   SetConnect(False);
-  ToLog('Disconnected');
 end;
 
 procedure TForm12.OnExcept(Sender: TObject);

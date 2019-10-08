@@ -8,6 +8,7 @@ uses
   System.RTLConsts,
   System.Classes,
   System.Threading,
+  System.SyncObjs,
   System.Net.Socket;
 
 type
@@ -19,8 +20,8 @@ type
     FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
+    C: TCriticalSection;
   protected
-    function ConnectedSync: Boolean;
     function Connected: Boolean;
     procedure DoConnect; override;
     procedure DoAfterConnect; virtual;
@@ -30,6 +31,7 @@ type
     procedure DoExcept(E: Exception); virtual;
   public
     constructor Create; virtual;
+    destructor Destroy; override;
     procedure Connect(const Address: string; Port: Word); overload;
     procedure Disconnect;
     property E: Exception read FException;
@@ -46,26 +48,18 @@ implementation
 constructor TTCPSocket.Create;
 begin
   inherited Create(TSocketType.TCP);
+  C:=TCriticalSection.Create;
+end;
+
+destructor TTCPSocket.Destroy;
+begin
+  C.Free;
+  inherited;
 end;
 
 procedure TTCPSocket.Disconnect;
 begin
   if Connected then Close;
-end;
-
-function TTCPSocket.ConnectedSync: Boolean;
-var AConnected: Boolean;
-begin
-
-  TThread.Synchronize(nil,
-
-  procedure
-  begin
-    AConnected:=Connected;
-  end);
-
-  Result:=AConnected;
-
 end;
 
 function TTCPSocket.Connected: Boolean;
@@ -88,8 +82,6 @@ begin
   var NetEndpoint: TNetEndpoint;
   begin
 
-    TMonitor.Enter(Self);
-
     try
 
       NetEndpoint:=TNetEndpoint.Create(TIPAddress.Create(Address),Port);
@@ -99,15 +91,12 @@ begin
       procedure
       begin
 
-        if Connected then
-          if CompareEndpoints(NetEndpoint,Endpoint) then
-            DoAfterConnect
-          else begin
-            Disconnect;
-            Connect(NetEndpoint);
-          end
-        else
+        if Connected and CompareEndpoints(NetEndpoint,Endpoint) then
+          DoAfterConnect
+        else begin
+          Disconnect;
           Connect(NetEndpoint);
+        end
 
       end);
 
@@ -116,8 +105,6 @@ begin
       DoExcept(E);
 
     end;
-
-    TMonitor.Exit(Self);
 
   end);
 
@@ -131,27 +118,43 @@ begin
   procedure
   begin
 
-    TMonitor.Enter(Self);
+    C.Enter;
 
     try
 
       inherited;
 
+      TThread.Synchronize(nil,
+
+      procedure
+      begin
+        DoConnected;
+        DoAfterConnect;
+      end);
+
       TTask.Run(
 
       procedure
+      var Lost: Boolean;
       begin
 
         try
 
-          while ConnectedSync and (WaitForData=wrSignaled) do
+          Lost:=False;
+
+          while not Lost and (WaitForData=wrSignaled) do
 
           TThread.Synchronize(nil,
 
           procedure
           begin
-            if ReceiveLength>0 then DoReceived
-            else Disconnect;
+            if ReceiveLength>0 then
+              DoReceived
+            else begin
+              Disconnect;
+              DoClose;
+              Lost:=True;
+            end;
           end);
 
         except on E: Exception do
@@ -160,23 +163,7 @@ begin
 
         end;
 
-        TThread.Synchronize(nil,
-
-        procedure
-        begin
-          Disconnect;
-          DoClose;
-        end);
-
-      end);
-
-      TThread.Synchronize(nil,
-
-      procedure
-      begin
-
-        DoConnected;
-        DoAfterConnect;
+        C.Leave;
 
       end);
 
@@ -185,8 +172,6 @@ begin
       DoExcept(E);
 
     end;
-
-    TMonitor.Exit(Self);
 
   end);
 
