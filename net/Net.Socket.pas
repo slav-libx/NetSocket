@@ -8,7 +8,8 @@ uses
   System.Classes,
   System.Threading,
   System.SyncObjs,
-  System.Net.Socket;
+  System.Net.Socket,
+  FMX.Types;
 
 type
 
@@ -90,12 +91,15 @@ begin
       procedure
       begin
 
-        if Connected and CompareEndpoints(NetEndpoint,Endpoint) then
-          DoAfterConnect
-        else begin
-          Disconnect;
+        if Connected then
+          if CompareEndpoints(NetEndpoint,Endpoint) then
+            DoAfterConnect
+          else begin
+            Disconnect;
+            Connect(NetEndpoint);
+          end
+        else
           Connect(NetEndpoint);
-        end;
 
       end);
 
