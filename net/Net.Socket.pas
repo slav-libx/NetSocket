@@ -13,27 +13,39 @@ uses
 
 type
 
-  TTCPSocket = class(TSocket)
+  TTCPSocket = class
   private
+    FSocket: TSocket;
+    FTerminated: Boolean;
     FOnConnect: TNotifyEvent;
     FOnClose: TNotifyEvent;
     FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
     C: TCriticalSection;
+    function GetHandle: TSocketHandle;
+    function GetAddress: string;
+    function GetRemoteAddress: string;
   protected
     function Connected: Boolean;
-    procedure DoConnect; override;
+    procedure DoConnect(const NetEndpoint: TNetEndpoint);
     procedure DoAfterConnect; virtual;
     procedure DoConnected; virtual;
     procedure DoReceived; virtual;
     procedure DoClose;
     procedure DoExcept(E: Exception); virtual;
+    property Socket: TSocket read FSocket;
   public
-    constructor Create; virtual;
+    constructor Create(Socket: TSocket); overload;
+    constructor Create; overload; virtual;
     destructor Destroy; override;
     procedure Connect(const Address: string; Port: Word); overload;
+    procedure Connect; overload;
     procedure Disconnect;
+    function ReceiveString: string;
+    property Handle: TSocketHandle read GetHandle;
+    property Address: string read GetAddress;
+    property RemoteAddress: string read GetRemoteAddress;
     property E: Exception read FException;
     property OnConnect: TNotifyEvent read FOnConnect write FOnConnect;
     property OnClose: TNotifyEvent read FOnClose write FOnClose;
@@ -41,30 +53,73 @@ type
     property OnExcept: TNotifyEvent read FOnExcept write FOnExcept;
   end;
 
+  TTCPServer = class
+  private
+    FSocket: TSocket;
+    FAcceptSocket: TSocket;
+    FOnAccept: TNotifyEvent;
+  protected
+    function Started: Boolean;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Start(Port: Word);
+    procedure Stop;
+    function GetAcceptSocket: TTCPSocket;
+    property OnAccept: TNotifyEvent read FOnAccept write FOnAccept;
+  end;
+
 implementation
 
 // https://docs.microsoft.com/ru-ru/dotnet/framework/network-programming/asynchronous-client-socket-example?view=netframework-4.8
 
+constructor TTCPSocket.Create(Socket: TSocket);
+begin
+  FSocket:=Socket;
+  FSocket.Encoding:=TEncoding.ANSI;
+  C:=TCriticalSection.Create;
+end;
+
 constructor TTCPSocket.Create;
 begin
-  inherited Create(TSocketType.TCP);
-  C:=TCriticalSection.Create;
+  Create(TSocket.Create(TSocketType.TCP));
 end;
 
 destructor TTCPSocket.Destroy;
 begin
+  FTerminated:=True;
+  FSocket.Free;
   C.Free;
-  inherited;
+end;
+
+function TTCPSocket.GetAddress: string;
+begin
+  Result:=Socket.Endpoint.Address.Address;
+end;
+
+function TTCPSocket.GetHandle: TSocketHandle;
+begin
+  Result:=Socket.Handle;
+end;
+
+function TTCPSocket.GetRemoteAddress: string;
+begin
+  Result:=Socket.RemoteAddress;
+end;
+
+function TTCPSocket.ReceiveString: string;
+begin
+  Result:=Socket.ReceiveString;
 end;
 
 procedure TTCPSocket.Disconnect;
 begin
-  if Connected then Close;
+  if Connected then Socket.Close;
 end;
 
 function TTCPSocket.Connected: Boolean;
 begin
-  Result:=TSocketState.Connected in State;
+  Result:=TSocketState.Connected in Socket.State;
 end;
 
 function CompareEndpoints(const EndPoint1,EndPoint2: TNetEndpoint): Boolean;
@@ -92,14 +147,14 @@ begin
       begin
 
         if Connected then
-          if CompareEndpoints(NetEndpoint,Endpoint) then
+          if CompareEndpoints(NetEndpoint,Socket.Endpoint) then
             DoAfterConnect
           else begin
             Disconnect;
-            Connect(NetEndpoint);
+            DoConnect(NetEndpoint);
           end
         else
-          Connect(NetEndpoint);
+          DoConnect(NetEndpoint);
 
       end);
 
@@ -113,7 +168,15 @@ begin
 
 end;
 
-procedure TTCPSocket.DoConnect;
+procedure TTCPSocket.Connect;
+begin
+  DoConnect(Socket.Endpoint);
+end;
+
+type
+  TSocketAccess = class(TSocket);
+
+procedure TTCPSocket.DoConnect(const NetEndpoint: TNetEndpoint);
 begin
 
   TTask.Run(
@@ -128,7 +191,7 @@ begin
 
     try
 
-      inherited;
+      if not Connected then Socket.Connect(NetEndpoint);
 
       TThread.Synchronize(nil,
 
@@ -138,13 +201,15 @@ begin
         DoAfterConnect;
       end);
 
-      while not Lost and (WaitForData=wrSignaled) do
+      while not Lost and (TSocketAccess(Socket).WaitForData=wrSignaled) do
+
+      if FTerminated then Exit else
 
       TThread.Synchronize(nil,
 
       procedure
       begin
-        if ReceiveLength>0 then
+        if Socket.ReceiveLength>0 then
           DoReceived
         else begin
           Disconnect;
@@ -207,6 +272,67 @@ begin
 
   else raise E;
 
+end;
+
+{ TTCPServer }
+
+constructor TTCPServer.Create;
+begin
+  FSocket:=TSocket.Create(TSocketType.TCP);
+end;
+
+destructor TTCPServer.Destroy;
+begin
+  Stop;
+  FAcceptSocket.Free;
+  FSocket.Free;
+  inherited;
+end;
+
+function TTCPServer.Started: Boolean;
+begin
+  Result:=TSocketState.Connected in FSocket.State;
+end;
+
+procedure TTCPServer.Start(Port: Word);
+begin
+
+  FSocket.Listen('','',Port);
+
+  TTask.Run(
+
+  procedure
+  begin
+
+    while True do
+    try
+
+      FAcceptSocket:=FSocket.Accept(INFINITE);
+
+      TThread.Synchronize(nil,
+
+      procedure
+      begin
+        FOnAccept(Self);
+      end);
+
+     except
+       Break;
+     end;
+
+  end);
+
+end;
+
+procedure TTCPServer.Stop;
+begin
+  if Started then FSocket.Close(True);
+end;
+
+function TTCPServer.GetAcceptSocket: TTCPSocket;
+begin
+  Result:=TTCPSocket.Create(FAcceptSocket);
+  FAcceptSocket:=nil;
 end;
 
 end.

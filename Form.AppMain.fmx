@@ -17,10 +17,12 @@ object Form12: TForm12
     Size.Width = 342.000000000000000000
     Size.Height = 590.000000000000000000
     Size.PlatformDefault = False
-    TabIndex = 0
+    TabIndex = 2
     TabOrder = 3
     TabPosition = PlatformDefault
     Sizes = (
+      342s
+      564s
       342s
       564s
       342s
@@ -29,8 +31,8 @@ object Form12: TForm12
       CustomIcon = <
         item
         end>
-      IsSelected = True
-      Size.Width = 49.000000000000000000
+      IsSelected = False
+      Size.Width = 48.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
       StyleLookup = ''
@@ -153,7 +155,7 @@ object Form12: TForm12
         item
         end>
       IsSelected = False
-      Size.Width = 40.000000000000000000
+      Size.Width = 41.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
       StyleLookup = ''
@@ -170,8 +172,8 @@ object Form12: TForm12
         Size.Height = 496.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
-        Viewport.Width = 342.000000000000000000
-        Viewport.Height = 496.000000000000000000
+        Viewport.Width = 338.000000000000000000
+        Viewport.Height = 492.000000000000000000
       end
       object Layout3: TLayout
         Align = Bottom
@@ -221,6 +223,92 @@ object Form12: TForm12
           Text = 'Clear'
           OnClick = Button6Click
         end
+      end
+    end
+    object TabItem3: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = True
+      Size.Width = 54.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'Server'
+      object Layout4: TLayout
+        Align = Bottom
+        Position.Y = 496.000000000000000000
+        Size.Width = 342.000000000000000000
+        Size.Height = 68.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
+        object Button7: TButton
+          Anchors = [akLeft, akBottom]
+          Position.X = 16.000000000000000000
+          Position.Y = 14.000000000000000000
+          Size.Width = 80.000000000000000000
+          Size.Height = 38.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 1
+          Text = 'Start'
+          OnClick = Button7Click
+        end
+        object Circle3: TCircle
+          Anchors = [akRight, akBottom]
+          Position.X = 295.000000000000000000
+          Position.Y = 18.000000000000000000
+          Size.Width = 36.000000000000000000
+          Size.Height = 34.000000000000000000
+          Size.PlatformDefault = False
+          object Label1: TLabel
+            Align = Client
+            StyledSettings = [Family, Size, Style]
+            Size.Width = 36.000000000000000000
+            Size.Height = 34.000000000000000000
+            Size.PlatformDefault = False
+            TextSettings.FontColor = claWhite
+            TextSettings.HorzAlign = Center
+            TextSettings.WordWrap = False
+            TextSettings.Trimming = None
+            Text = 'Label1'
+            TabOrder = 0
+          end
+        end
+        object Button8: TButton
+          Anchors = [akLeft, akBottom]
+          Position.X = 104.000000000000000000
+          Position.Y = 14.000000000000000000
+          Size.Width = 80.000000000000000000
+          Size.Height = 38.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 2
+          Text = 'Stop'
+          OnClick = Button8Click
+        end
+        object Button9: TButton
+          Anchors = [akLeft, akBottom]
+          Position.X = 192.000000000000000000
+          Position.Y = 14.000000000000000000
+          Size.Width = 80.000000000000000000
+          Size.Height = 38.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 0
+          Text = 'Clear'
+          OnClick = Button9Click
+        end
+      end
+      object Memo3: TMemo
+        Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+        DataDetectorTypes = []
+        TextSettings.WordWrap = True
+        Align = Client
+        Size.Width = 342.000000000000000000
+        Size.Height = 496.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 1
+        Viewport.Width = 338.000000000000000000
+        Viewport.Height = 492.000000000000000000
       end
     end
   end

@@ -11,6 +11,7 @@ uses
   System.Variants,
   System.IOUtils,
   System.Net.Socket,
+  System.Generics.Collections,
   FMX.Types,
   FMX.Controls,
   FMX.Forms,
@@ -49,6 +50,14 @@ type
     Circle2: TCircle;
     Button2: TButton;
     Button6: TButton;
+    TabItem3: TTabItem;
+    Layout4: TLayout;
+    Button7: TButton;
+    Circle3: TCircle;
+    Button8: TButton;
+    Button9: TButton;
+    Memo3: TMemo;
+    Label1: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button3Click(Sender: TObject);
@@ -57,6 +66,9 @@ type
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure Button6Click(Sender: TObject);
+    procedure Button7Click(Sender: TObject);
+    procedure Button9Click(Sender: TObject);
+    procedure Button8Click(Sender: TObject);
   private
     HTTPSocket: THTTPSocket;
     FResponseIndex: Integer;
@@ -77,6 +89,13 @@ type
     procedure OnTCPExcept(Sender: TObject);
     procedure ToTCPLog(const Message: string);
     procedure ScrollTCPLogToBottom;
+  private
+    TCPServer: TTCPServer;
+    FClients: TObjectList<TTCPSocket>;
+    procedure UpdateClients;
+    procedure OnAccept(Sender: TObject);
+    procedure OnClientReceived(Sender: TObject);
+    procedure OnClientClose(Sender: TObject);
   public
   end;
 
@@ -93,15 +112,14 @@ begin
   Button3Click(nil);
 
   Circle1.Fill.Color:=claRed;
+  Circle3.Fill.Color:=claRed;
 
-//  TCPSocket:=TTCPSocket.Create;
-//
-//  TCPSocket.Encoding:=TEncoding.ANSI;
-//
-//  TCPSocket.OnConnect:=OnTCPConnect;
-//  TCPSocket.OnReceived:=OnTCPReceived;
-//  TCPSocket.OnClose:=OnTCPClose;
-//  TCPSocket.OnExcept:=OnTCPExcept;
+  TCPSocket:=TTCPSocket.Create;
+
+  TCPSocket.OnConnect:=OnTCPConnect;
+  TCPSocket.OnReceived:=OnTCPReceived;
+  TCPSocket.OnClose:=OnTCPClose;
+  TCPSocket.OnExcept:=OnTCPExcept;
 
   HTTPSocket:=THTTPSocket.Create;
 
@@ -109,6 +127,13 @@ begin
   HTTPSocket.OnClose:=OnClose;
   HTTPSocket.OnExcept:=OnExcept;
   HTTPSocket.OnCompleted:=OnCompleted;
+
+  TCPServer:=TTCPServer.Create;
+  TCPServer.OnAccept:=OnAccept;
+
+  FClients:=TObjectList<TTCPSocket>.Create;
+
+  UpdateClients;
 
   ComboBox1.Items.Add('http://185.182.193.15/api/node/?identity=BFC9AA5719DE2F25E5E8A7FE5D21C95B');
   ComboBox1.Items.Add('http://www.ancestryimages.com/stockimages/sm0112-Essex-Moule-l.jpg');
@@ -132,8 +157,10 @@ end;
 
 procedure TForm12.FormDestroy(Sender: TObject);
 begin
-//  TCPSocket.Free;
+  FClients.Free;
+  TCPSocket.Free;
   HTTPSocket.Free;
+  TCPServer.Free;
 end;
 
 procedure TForm12.ScrollLogToBottom;
@@ -171,7 +198,7 @@ begin
   if Active then
   begin
     Circle1.Fill.Color:=claGreen;
-    ToLog('Connected ['+HTTPSocket.Handle.ToString+'] to '+HTTPSocket.Endpoint.Address.Address);
+    ToLog('Connected ['+HTTPSocket.Handle.ToString+'] to '+HTTPSocket.Address);
   end else begin
     Circle1.Fill.Color:=claRed;
     ToLog('Disconnected');
@@ -301,6 +328,52 @@ end;
 procedure TForm12.Button6Click(Sender: TObject);
 begin
   Memo2.Lines.Clear;
+end;
+
+// Server
+
+procedure TForm12.UpdateClients;
+begin
+  Label1.Text:=FClients.Count.ToString;
+end;
+
+procedure TForm12.Button7Click(Sender: TObject);
+begin
+  TCPServer.Start(80);
+  Circle3.Fill.Color:=claGreen;
+end;
+
+procedure TForm12.Button8Click(Sender: TObject);
+begin
+  TCPServer.Stop;
+  Circle3.Fill.Color:=claRed;
+end;
+
+procedure TForm12.Button9Click(Sender: TObject);
+begin
+  Memo3.Lines.Clear;
+end;
+
+procedure TForm12.OnAccept(Sender: TObject);
+var Client: TTCPSocket;
+begin
+  Client:=TCPServer.GetAcceptSocket;
+  Client.OnReceived:=OnClientReceived;
+  Client.OnClose:=OnClientClose;
+  Client.Connect;
+  FClients.Add(Client);
+  UpdateClients;
+end;
+
+procedure TForm12.OnClientReceived(Sender: TObject);
+begin
+  Memo3.Lines.Add(TTCPSocket(Sender).ReceiveString);
+end;
+
+procedure TForm12.OnClientClose(Sender: TObject);
+begin
+  FClients.Remove(TTCPSocket(Sender));
+  UpdateClients;
 end;
 
 end.

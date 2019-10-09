@@ -74,14 +74,14 @@ end;
 
 procedure THTTPSocket.DoAfterConnect;
 begin
-  Send(Request.Compose);
+  Socket.Send(Request.Compose);
 end;
 
 procedure THTTPSocket.DoReceived;
 var Bytes: TBytes;
 begin
   inherited;
-  Receive(Bytes);
+  Socket.Receive(Bytes);
   Response.DoRead(Bytes);
 end;
 
