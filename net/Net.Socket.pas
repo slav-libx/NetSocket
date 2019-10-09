@@ -5,12 +5,10 @@ interface
 uses
   System.Types,
   System.SysUtils,
-  //System.RTLConsts,
   System.Classes,
   System.Threading,
   System.SyncObjs,
-  System.Net.Socket,
-  FMX.Types;
+  System.Net.Socket;
 
 type
 
@@ -21,7 +19,7 @@ type
     FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
-    C,P: TCriticalSection;
+    C: TCriticalSection;
   protected
     function Connected: Boolean;
     procedure DoConnect; override;
@@ -49,13 +47,11 @@ implementation
 constructor TTCPSocket.Create;
 begin
   inherited Create(TSocketType.TCP);
-  P:=TCriticalSection.Create;
   C:=TCriticalSection.Create;
 end;
 
 destructor TTCPSocket.Destroy;
 begin
-  P.Free;
   C.Free;
   inherited;
 end;
@@ -85,8 +81,6 @@ begin
   var NetEndpoint: TNetEndpoint;
   begin
 
-    P.Enter;
-
     try
 
       NetEndpoint:=TNetEndpoint.Create(TIPAddress.Create(Address),Port);
@@ -101,7 +95,7 @@ begin
         else begin
           Disconnect;
           Connect(NetEndpoint);
-        end
+        end;
 
       end);
 
@@ -110,8 +104,6 @@ begin
       DoExcept(E);
 
     end;
-
-    P.Leave;
 
   end);
 
@@ -126,13 +118,9 @@ begin
   var Lost: Boolean;
   begin
 
-    Lost:=False;
-
-    Log.d('C.Enter');
-    //TMonitor.Enter(Self);
     C.Enter;
 
-    Log.d('C.Entered');
+    Lost:=False;
 
     try
 
@@ -146,8 +134,6 @@ begin
         DoAfterConnect;
       end);
 
-      Log.d('Read loop');
-
       while not Lost and (WaitForData=wrSignaled) do
 
       TThread.Synchronize(nil,
@@ -157,11 +143,9 @@ begin
         if ReceiveLength>0 then
           DoReceived
         else begin
-          Log.d('Lost');
           Disconnect;
           DoClose;
           Lost:=True;
-          Log.d('Losted');
         end;
       end);
 
@@ -171,9 +155,6 @@ begin
 
     end;
 
-    Log.d('C.Leave');
-
-    //TMonitor.Exit(Self);
     C.Leave;
 
   end);
