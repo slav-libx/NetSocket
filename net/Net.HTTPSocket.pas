@@ -16,26 +16,43 @@ type
   private
     FRequest: TRequest;
     FResponse: TResponse;
-    FOnCompleted: TNotifyEvent;
+    FOnResponse: TNotifyEvent;
     procedure OnReadComplete(Sender: TObject);
   protected
     procedure DoConnected; override;
     procedure DoAfterConnect; override;
     procedure DoReceived; override;
   public
-    constructor Create; override;
+    constructor Create(Socket: TSocket); override;
     destructor Destroy; override;
     procedure Get(const URL: string);
     property Request: TRequest read FRequest;
     property Response: TResponse read FResponse;
-    property OnCompleted: TNotifyEvent read FOnCompleted write FOnCompleted;
+    property OnResponse: TNotifyEvent read FOnResponse write FOnResponse;
+  end;
+
+  THTTPServerClient = class(TTCPSocket)
+  private
+    FRequest: TRequest;
+    FResponse: TResponse;
+    FOnRequest: TNotifyEvent;
+    procedure OnReadComplete(Sender: TObject);
+  protected
+    procedure DoConnected; override;
+    procedure DoReceived; override;
+  public
+    constructor Create(Socket: TSocket); override;
+    destructor Destroy; override;
+    property Request: TRequest read FRequest;
+    property Response: TResponse read FResponse;
+    property OnRequest: TNotifyEvent read FOnRequest write FOnRequest;
   end;
 
 implementation
 
-constructor THTTPClient.Create;
+constructor THTTPClient.Create(Socket: TSocket);
 begin
-  inherited;
+  inherited Create(Socket);
   FRequest:=TRequest.Create;
   FResponse:=TResponse.Create;
   Response.OnReadComplete:=OnReadComplete;
@@ -88,7 +105,78 @@ end;
 procedure THTTPClient.OnReadComplete(Sender: TObject);
 begin
   Response.Merge(Request);
-  if Assigned(FOnCompleted) then FOnCompleted(Self);
+  if Assigned(FOnResponse) then FOnResponse(Self);
+end;
+
+{ THTTPServerClient }
+
+constructor THTTPServerClient.Create(Socket: TSocket);
+begin
+  inherited Create(Socket);
+  FRequest:=TRequest.Create;
+  FResponse:=TResponse.Create;
+  FRequest.OnReadComplete:=OnReadComplete;
+end;
+
+destructor THTTPServerClient.Destroy;
+begin
+  FRequest.Free;
+  FResponse.Free;
+  inherited;
+end;
+
+procedure THTTPServerClient.DoConnected;
+begin
+  inherited;
+  Request.Reset;
+end;
+
+procedure THTTPServerClient.DoReceived;
+var Bytes: TBytes;
+begin
+  inherited;
+  Socket.Receive(Bytes);
+  Request.DoRead(Bytes);
+end;
+
+procedure THTTPServerClient.OnReadComplete(Sender: TObject);
+begin
+
+  Request.Merge;
+
+  Response.Reset;
+  Response.Protocol:=PROTOCOL_HTTP11;
+  Response.Headers.SetConnection(False,0);
+
+  if Request.Protocol<>PROTOCOL_HTTP11 then
+  begin
+
+    Response.SetResult(HTTPCODE_NOT_SUPPORTED,'HTTP Version Not Supported')
+
+  end else
+
+    if Request.Method=METHOD_GET then
+    begin
+
+      if Assigned(FOnRequest) then
+
+        FOnRequest(Self)
+
+      else begin
+
+        Response.SetResult(HTTPCODE_NOT_FOUND,'Not Found');
+
+        Response.AddContentText(content_404,'text/html');
+
+      end;
+
+    end else
+
+      Response.SetResult(HTTPCODE_METHOD_NOT_ALLOWED,'Method Not Allowed');
+
+  Socket.Send(Response.Compose);
+  Socket.Send(Response.Content,0,Length(Response.Content));
+
 end;
 
 end.

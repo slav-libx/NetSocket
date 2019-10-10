@@ -9,6 +9,7 @@ uses
   System.Threading,
   System.SyncObjs,
   System.Net.Socket,
+  System.Net.URLClient,
   FMX.Types;
 
 type
@@ -36,10 +37,11 @@ type
     procedure DoExcept(E: Exception); virtual;
     property Socket: TSocket read FSocket;
   public
-    constructor Create(Socket: TSocket); overload;
+    constructor Create(Socket: TSocket); overload; virtual;
     constructor Create; overload; virtual;
     destructor Destroy; override;
     procedure Connect(const Address: string; Port: Word); overload;
+    procedure Connect(const URL: string); overload;
     procedure Connect; overload;
     procedure Disconnect;
     function ReceiveString: string;
@@ -168,6 +170,13 @@ begin
 
 end;
 
+procedure TTCPSocket.Connect(const URL: string);
+var URI: TURI;
+begin
+  URI.Create('socket://'+URL);
+  Connect(URI.Host,URI.Port);
+end;
+
 procedure TTCPSocket.Connect;
 begin
   DoConnect(Socket.Endpoint);
@@ -224,7 +233,7 @@ begin
 
     end;
 
-    C.Leave;
+    if not FTerminated then C.Leave;
 
   end);
 
@@ -299,11 +308,6 @@ begin
 
   FSocket.Listen('','',Port);
 
-  FSocket.LocalHost;
-  FSocket.LocalAddress;
-  FSocket.LocalPort;
-  FSocket.LocalEndpoint;
-
   TTask.Run(
 
   procedure
@@ -312,7 +316,7 @@ begin
     while True do
     try
 
-      FAcceptSocket:=FSocket.Accept(INFINITE);
+      FAcceptSocket:=FSocket.Accept;
 
       TThread.Synchronize(nil,
 
