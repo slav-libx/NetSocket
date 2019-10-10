@@ -12,7 +12,7 @@ uses
   Lib.HTTPContent;
 
 type
-  THTTPSocket = class(TTCPSocket)
+  THTTPClient = class(TTCPSocket)
   private
     FRequest: TRequest;
     FResponse: TResponse;
@@ -33,7 +33,7 @@ type
 
 implementation
 
-constructor THTTPSocket.Create;
+constructor THTTPClient.Create;
 begin
   inherited;
   FRequest:=TRequest.Create;
@@ -41,14 +41,14 @@ begin
   Response.OnReadComplete:=OnReadComplete;
 end;
 
-destructor THTTPSocket.Destroy;
+destructor THTTPClient.Destroy;
 begin
   FRequest.Free;
   FResponse.Free;
   inherited;
 end;
 
-procedure THTTPSocket.Get(const URL: string);
+procedure THTTPClient.Get(const URL: string);
 var URI: TURI;
 begin
 
@@ -66,18 +66,18 @@ begin
 
 end;
 
-procedure THTTPSocket.DoConnected;
+procedure THTTPClient.DoConnected;
 begin
   inherited;
   Response.Reset;
 end;
 
-procedure THTTPSocket.DoAfterConnect;
+procedure THTTPClient.DoAfterConnect;
 begin
   Socket.Send(Request.Compose);
 end;
 
-procedure THTTPSocket.DoReceived;
+procedure THTTPClient.DoReceived;
 var Bytes: TBytes;
 begin
   inherited;
@@ -85,7 +85,7 @@ begin
   Response.DoRead(Bytes);
 end;
 
-procedure THTTPSocket.OnReadComplete(Sender: TObject);
+procedure THTTPClient.OnReadComplete(Sender: TObject);
 begin
   Response.Merge(Request);
   if Assigned(FOnCompleted) then FOnCompleted(Self);

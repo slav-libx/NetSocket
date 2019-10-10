@@ -70,7 +70,7 @@ type
     procedure Button9Click(Sender: TObject);
     procedure Button8Click(Sender: TObject);
   private
-    HTTPSocket: THTTPSocket;
+    HTTPClient: THTTPClient;
     FResponseIndex: Integer;
     procedure OnConnect(Sender: TObject);
     procedure OnClose(Sender: TObject);
@@ -121,12 +121,12 @@ begin
   TCPSocket.OnClose:=OnTCPClose;
   TCPSocket.OnExcept:=OnTCPExcept;
 
-  HTTPSocket:=THTTPSocket.Create;
+  HTTPClient:=THTTPClient.Create;
 
-  HTTPSocket.OnConnect:=OnConnect;
-  HTTPSocket.OnClose:=OnClose;
-  HTTPSocket.OnExcept:=OnExcept;
-  HTTPSocket.OnCompleted:=OnCompleted;
+  HTTPClient.OnConnect:=OnConnect;
+  HTTPClient.OnClose:=OnClose;
+  HTTPClient.OnExcept:=OnExcept;
+  HTTPClient.OnCompleted:=OnCompleted;
 
   TCPServer:=TTCPServer.Create;
   TCPServer.OnAccept:=OnAccept;
@@ -143,6 +143,7 @@ begin
   ComboBox1.Items.Add('http://i.artfile.ru/1366x768_1477274_[www.ArtFile.ru].jpg');
   ComboBox1.Items.Add('http://zagony.ru/admin_new/foto/2012-4-23/1335176695/chastnye_fotografii_devushek_100_foto_31.jpg');
   ComboBox1.Items.Add('http://localhost/2.jpg');
+  ComboBox1.Items.Add('http://localhost:8080/2.jpg');
   ComboBox1.Items.Add('http://localhost/9.jpg');
   ComboBox1.Items.Add('http://history-maps.ru/pictures/max/0/1764.jpg');
   ComboBox1.Items.Add('http://zagony.ru/admin_new/foto/2019-9-23/1569240641/festival_piva_oktoberfest2019_v_mjunkhene_22_foto_14.jpg');
@@ -159,7 +160,7 @@ procedure TForm12.FormDestroy(Sender: TObject);
 begin
   FClients.Free;
   TCPSocket.Free;
-  HTTPSocket.Free;
+  HTTPClient.Free;
   TCPServer.Free;
 end;
 
@@ -198,7 +199,7 @@ begin
   if Active then
   begin
     Circle1.Fill.Color:=claGreen;
-    ToLog('Connected ['+HTTPSocket.Handle.ToString+'] to '+HTTPSocket.Address);
+    ToLog('Connected ['+HTTPClient.Handle.ToString+'] to '+HTTPClient.Address);
   end else begin
     Circle1.Fill.Color:=claRed;
     ToLog('Disconnected');
@@ -215,13 +216,13 @@ end;
 procedure TForm12.Button4Click(Sender: TObject);
 begin
   Image1.Bitmap.Assign(nil);
-  HTTPSocket.Get(ComboBox1.Items[ComboBox1.ItemIndex]);
+  HTTPClient.Get(ComboBox1.Items[ComboBox1.ItemIndex]);
   //HTTPSocket.Get(ComboBox1.Items[ComboBox1.ItemIndex]);
 end;
 
 procedure TForm12.Button5Click(Sender: TObject);
 begin
-  HTTPSocket.Disconnect;
+  HTTPClient.Disconnect;
 end;
 
 procedure TForm12.OnConnect(Sender: TObject);
@@ -236,7 +237,7 @@ end;
 
 procedure TForm12.OnExcept(Sender: TObject);
 begin
-  ToLog(HTTPSocket.E.Message);
+  ToLog(HTTPClient.E.Message);
 end;
 
 procedure TForm12.OnCompleted(Sender: TObject);
@@ -245,15 +246,15 @@ begin
   Inc(FResponseIndex);
 
   ToLog('---'+FResponseIndex.ToString+'---');
-  ToLog(HTTPSocket.Response.ResultCode.ToString+' '+HTTPSocket.Response.ResultText);
-  ToLog(HTTPSocket.Response.Headers.Text);
+  ToLog(HTTPClient.Response.ResultCode.ToString+' '+HTTPClient.Response.ResultText);
+  ToLog(HTTPClient.Response.Headers.Text);
 
-  var ContentType:=HTTPSocket.Response.Headers.ContentType;
+  var ContentType:=HTTPClient.Response.Headers.ContentType;
 
   if ContentType.StartsWith('image') then
   begin
 
-    var Stream:=TBytesStream.Create(HTTPSocket.Response.Content);
+    var Stream:=TBytesStream.Create(HTTPClient.Response.Content);
 
     try
       Image1.Bitmap.LoadFromStream(Stream);
@@ -268,13 +269,13 @@ begin
 
     if ContentType.StartsWith('text') or ContentType.EndsWith('json') then
 
-      ToLog(TEncoding.ANSI.GetString(HTTPSocket.Response.Content));
+      ToLog(TEncoding.ANSI.GetString(HTTPClient.Response.Content));
 
   end;
 
 end;
 
-// TCP
+// TCP Client
 
 procedure TForm12.ToTCPLog(const Message: string);
 begin
@@ -339,7 +340,7 @@ end;
 
 procedure TForm12.Button7Click(Sender: TObject);
 begin
-  TCPServer.Start(80);
+  TCPServer.Start(8080);
   Circle3.Fill.Color:=claGreen;
 end;
 
@@ -357,7 +358,7 @@ end;
 procedure TForm12.OnAccept(Sender: TObject);
 var Client: TTCPSocket;
 begin
-  Client:=TCPServer.GetAcceptSocket;
+  Client:=TTCPSocket.Create(TCPServer.GetAcceptSocket);
   Client.OnReceived:=OnClientReceived;
   Client.OnClose:=OnClientClose;
   Client.Connect;

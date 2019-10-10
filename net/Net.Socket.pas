@@ -65,7 +65,7 @@ type
     destructor Destroy; override;
     procedure Start(Port: Word);
     procedure Stop;
-    function GetAcceptSocket: TTCPSocket;
+    function GetAcceptSocket(Take: Boolean=True): TSocket;
     property OnAccept: TNotifyEvent read FOnAccept write FOnAccept;
   end;
 
@@ -299,6 +299,11 @@ begin
 
   FSocket.Listen('','',Port);
 
+  FSocket.LocalHost;
+  FSocket.LocalAddress;
+  FSocket.LocalPort;
+  FSocket.LocalEndpoint;
+
   TTask.Run(
 
   procedure
@@ -329,10 +334,10 @@ begin
   if Started then FSocket.Close(True);
 end;
 
-function TTCPServer.GetAcceptSocket: TTCPSocket;
+function TTCPServer.GetAcceptSocket(Take: Boolean=True): TSocket;
 begin
-  Result:=TTCPSocket.Create(FAcceptSocket);
-  FAcceptSocket:=nil;
+  Result:=FAcceptSocket;
+  if Take then FAcceptSocket:=nil;
 end;
 
 end.
