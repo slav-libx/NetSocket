@@ -17,9 +17,11 @@ type
   TTCPSocket = class
   private
     FSocket: TSocket;
+    FAcceptSocket: TSocket;
     FTerminated: Boolean;
     FOnConnect: TNotifyEvent;
     FOnClose: TNotifyEvent;
+    FOnAccept: TNotifyEvent;
     FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
@@ -43,7 +45,9 @@ type
     procedure Connect(const Address: string; Port: Word); overload;
     procedure Connect(const URL: string); overload;
     procedure Connect; overload;
+    procedure Start(Port: Word);
     procedure Disconnect;
+    function GetAcceptSocket(Take: Boolean=True): TSocket;
     function ReceiveString: string;
     property Handle: TSocketHandle read GetHandle;
     property Address: string read GetAddress;
@@ -53,21 +57,6 @@ type
     property OnClose: TNotifyEvent read FOnClose write FOnClose;
     property OnReceived: TNotifyEvent read FOnReceived write FOnReceived;
     property OnExcept: TNotifyEvent read FOnExcept write FOnExcept;
-  end;
-
-  TTCPServer = class
-  private
-    FSocket: TSocket;
-    FAcceptSocket: TSocket;
-    FOnAccept: TNotifyEvent;
-  protected
-    function Started: Boolean;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    procedure Start(Port: Word);
-    procedure Stop;
-    function GetAcceptSocket(Take: Boolean=True): TSocket;
     property OnAccept: TNotifyEvent read FOnAccept write FOnAccept;
   end;
 
@@ -90,6 +79,7 @@ end;
 destructor TTCPSocket.Destroy;
 begin
   FTerminated:=True;
+  FAcceptSocket.Free;
   FSocket.Free;
   C.Free;
 end;
@@ -279,66 +269,49 @@ begin
     FException:=nil;
   end)
 
-  else raise E;
+  else ApplicationHandleException(E);
 
 end;
 
-{ TTCPServer }
-
-constructor TTCPServer.Create;
-begin
-  FSocket:=TSocket.Create(TSocketType.TCP);
-end;
-
-destructor TTCPServer.Destroy;
-begin
-  Stop;
-  FAcceptSocket.Free;
-  FSocket.Free;
-  inherited;
-end;
-
-function TTCPServer.Started: Boolean;
-begin
-  Result:=TSocketState.Connected in FSocket.State;
-end;
-
-procedure TTCPServer.Start(Port: Word);
+procedure TTCPSocket.Start(Port: Word);
 begin
 
-  FSocket.Listen('','',Port);
+  try
 
-  TTask.Run(
+    FSocket.Listen('','',Port);
 
-  procedure
-  begin
+    TTask.Run(
 
-    while True do
-    try
+    procedure
+    begin
 
-      FAcceptSocket:=FSocket.Accept;
+      while True do
+      try
 
-      TThread.Synchronize(nil,
+        FAcceptSocket:=FSocket.Accept;
 
-      procedure
-      begin
-        FOnAccept(Self);
-      end);
+        TThread.Synchronize(nil,
 
-     except
-       Break;
-     end;
+        procedure
+        begin
+          FOnAccept(Self);
+        end);
 
-  end);
+      except
+        Break;
+      end;
+
+    end);
+
+  except on E: Exception do
+
+    DoExcept(E);
+
+  end;
 
 end;
 
-procedure TTCPServer.Stop;
-begin
-  if Started then FSocket.Close(True);
-end;
-
-function TTCPServer.GetAcceptSocket(Take: Boolean=True): TSocket;
+function TTCPSocket.GetAcceptSocket(Take: Boolean=True): TSocket;
 begin
   Result:=FAcceptSocket;
   if Take then FAcceptSocket:=nil;

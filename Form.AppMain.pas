@@ -101,16 +101,17 @@ type
     procedure OnTCPClose(Sender: TObject);
     procedure OnTCPExcept(Sender: TObject);
   private
-    TCPServer: TTCPServer;
+    TCPServer: TTCPSocket;
     TCPClients: TObjectList<TTCPSocket>;
     procedure UpdateClients;
     procedure OnAccept(Sender: TObject);
     procedure OnClientReceived(Sender: TObject);
     procedure OnClientClose(Sender: TObject);
   private
-    HTTPServer: TTCPServer;
+    HTTPServer: TTCPSocket;
     HTTPClients: TObjectList<THTTPServerClient>;
     procedure UpdateHTTPClients;
+    procedure OnHTTPExcept(Sender: TObject);
     procedure OnHTTPAccept(Sender: TObject);
     procedure OnHTTPRequest(Sender: TObject);
     procedure OnHTTPClientClose(Sender: TObject);
@@ -164,14 +165,15 @@ begin
   HTTPClient.OnExcept:=OnExcept;
   HTTPClient.OnResponse:=OnResponse;
 
-  TCPServer:=TTCPServer.Create;
+  TCPServer:=TTCPSocket.Create;
+  TCPServer.OnExcept:=OnHTTPExcept;
   TCPServer.OnAccept:=OnAccept;
 
   TCPClients:=TObjectList<TTCPSocket>.Create;
 
   UpdateClients;
 
-  HTTPServer:=TTCPServer.Create;
+  HTTPServer:=TTCPSocket.Create;
   HTTPServer.OnAccept:=OnHTTPAccept;
 
   HTTPClients:=TObjectList<THTTPServerClient>.Create;
@@ -373,7 +375,7 @@ end;
 
 procedure TForm12.Button8Click(Sender: TObject);
 begin
-  TCPServer.Stop;
+  TCPServer.Disconnect;
   Circle3.Fill.Color:=claRed;
 end;
 
@@ -422,7 +424,7 @@ end;
 
 procedure TForm12.Button11Click(Sender: TObject);
 begin
-  HTTPServer.Stop;
+  HTTPServer.Disconnect;
   Circle4.Fill.Color:=claRed;
 end;
 
@@ -437,6 +439,7 @@ begin
   Client:=THTTPServerClient.Create(HTTPServer.GetAcceptSocket);
   Client.OnClose:=OnHTTPClientClose;
   Client.OnRequest:=OnHTTPRequest;
+  Client.OnExcept:=OnHTTPExcept;
   Client.Connect;
   HTTPClients.Add(Client);
   UpdateHTTPClients;
@@ -462,6 +465,11 @@ begin
   HTTPClients.Remove(THTTPServerClient(Sender));
   UpdateHTTPClients;
   ToMemo(Memo4,'Disconnected');
+end;
+
+procedure TForm12.OnHTTPExcept(Sender: TObject);
+begin
+  ToMemo(Memo4,TCPSocket.E.Message);
 end;
 
 end.
