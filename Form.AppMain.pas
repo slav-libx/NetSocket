@@ -104,6 +104,8 @@ type
     TCPServer: TTCPSocket;
     TCPClients: TObjectList<TTCPSocket>;
     procedure UpdateClients;
+    procedure OnTCPServerListen(Sender: TObject);
+    procedure OnTCPServerClose(Sender: TObject);
     procedure OnAccept(Sender: TObject);
     procedure OnClientReceived(Sender: TObject);
     procedure OnClientClose(Sender: TObject);
@@ -166,6 +168,8 @@ begin
   HTTPClient.OnResponse:=OnResponse;
 
   TCPServer:=TTCPSocket.Create;
+  TCPServer.OnConnect:=OnTCPServerListen;
+  TCPServer.OnClose:=OnTCPServerClose;
   TCPServer.OnExcept:=OnHTTPExcept;
   TCPServer.OnAccept:=OnAccept;
 
@@ -370,18 +374,28 @@ end;
 procedure TForm12.Button7Click(Sender: TObject);
 begin
   TCPServer.Start(StrToInt(ComboBox3.Items[ComboBox3.ItemIndex]));
-  Circle3.Fill.Color:=claGreen;
 end;
 
 procedure TForm12.Button8Click(Sender: TObject);
 begin
   TCPServer.Disconnect;
-  Circle3.Fill.Color:=claRed;
 end;
 
 procedure TForm12.Button9Click(Sender: TObject);
 begin
   Memo3.Lines.Clear;
+end;
+
+procedure TForm12.OnTCPServerListen(Sender: TObject);
+begin
+  if not Application.Terminated then
+  Circle3.Fill.Color:=claGreen;
+end;
+
+procedure TForm12.OnTCPServerClose(Sender: TObject);
+begin
+  if not Application.Terminated then
+  Circle3.Fill.Color:=claRed;
 end;
 
 procedure TForm12.OnAccept(Sender: TObject);

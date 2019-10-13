@@ -18,7 +18,6 @@ type
   private
     FSocket: TSocket;
     FAcceptSocket: TSocket;
-    FTerminated: Boolean;
     FOnConnect: TNotifyEvent;
     FOnClose: TNotifyEvent;
     FOnAccept: TNotifyEvent;
@@ -78,7 +77,7 @@ end;
 
 destructor TTCPSocket.Destroy;
 begin
-  FTerminated:=True;
+  Disconnect;
   FAcceptSocket.Free;
   FSocket.Free;
   C.Free;
@@ -106,12 +105,12 @@ end;
 
 procedure TTCPSocket.Disconnect;
 begin
-  if Connected then Socket.Close;
+  if Connected then Socket.Close(TSocketState.Listening in Socket.State);
 end;
 
 function TTCPSocket.Connected: Boolean;
 begin
-  Result:=TSocketState.Connected in Socket.State;
+  Result:=Assigned(Socket) and (TSocketState.Connected in Socket.State);
 end;
 
 function CompareEndpoints(const EndPoint1,EndPoint2: TNetEndpoint): Boolean;
@@ -163,7 +162,7 @@ end;
 procedure TTCPSocket.Connect(const URL: string);
 var URI: TURI;
 begin
-  URI.Create('socket://'+URL);
+  URI.Create('://'+URL);
   Connect(URI.Host,URI.Port);
 end;
 
@@ -202,17 +201,14 @@ begin
 
       while not Lost and (TSocketAccess(Socket).WaitForData=wrSignaled) do
 
-      if FTerminated then Exit else
-
       TThread.Synchronize(nil,
 
       procedure
       begin
-        if Socket.ReceiveLength>0 then
+        if Assigned(FSocket) and (Socket.ReceiveLength>0) then
           DoReceived
         else begin
-          Disconnect;
-          DoClose;
+
           Lost:=True;
         end;
       end);
@@ -223,7 +219,16 @@ begin
 
     end;
 
-    if not FTerminated then C.Leave;
+    Disconnect;
+
+    C.Leave;
+
+    TThread.Synchronize(nil,
+
+    procedure
+    begin
+      DoClose;
+    end);
 
   end);
 
@@ -258,18 +263,18 @@ end;
 procedure TTCPSocket.DoExcept(E: Exception);
 begin
 
-  if Assigned(FOnExcept) then
-
   TThread.Synchronize(nil,
 
   procedure
   begin
-    FException:=E;
-    FOnExcept(Self);
-    FException:=nil;
+    if (E is ESocketError) and Assigned(FOnExcept) then
+    begin
+      FException:=E;
+      FOnExcept(Self);
+      FException:=nil;
+    end else
+      ApplicationHandleException(E);
   end)
-
-  else ApplicationHandleException(E);
 
 end;
 
@@ -279,6 +284,8 @@ begin
   try
 
     FSocket.Listen('','',Port);
+
+    DoConnected;
 
     TTask.Run(
 
@@ -298,8 +305,12 @@ begin
         end);
 
       except
-        Break;
+      on E: ESocketError do Break; // Network socket error: WSACancelBlockingCall (10004), on API 'accept'
+      else ApplicationHandleException(E);
       end;
+
+      Disconnect;
+      DoClose;
 
     end);
 

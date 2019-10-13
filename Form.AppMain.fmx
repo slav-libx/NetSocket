@@ -17,7 +17,7 @@ object Form12: TForm12
     Size.Width = 342.000000000000000000
     Size.Height = 590.000000000000000000
     Size.PlatformDefault = False
-    TabIndex = 3
+    TabIndex = 1
     TabOrder = 3
     TabPosition = PlatformDefault
     Sizes = (
@@ -55,8 +55,8 @@ object Form12: TForm12
         Size.Height = 449.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
-        Viewport.Width = 322.000000000000000000
-        Viewport.Height = 449.000000000000000000
+        Viewport.Width = 318.000000000000000000
+        Viewport.Height = 445.000000000000000000
       end
       object Layout3: TLayout
         Align = Bottom
@@ -124,8 +124,8 @@ object Form12: TForm12
       CustomIcon = <
         item
         end>
-      IsSelected = False
-      Size.Width = 73.000000000000000000
+      IsSelected = True
+      Size.Width = 74.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
       StyleLookup = ''
@@ -208,8 +208,8 @@ object Form12: TForm12
         Size.Height = 449.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
-        Viewport.Width = 322.000000000000000000
-        Viewport.Height = 449.000000000000000000
+        Viewport.Width = 318.000000000000000000
+        Viewport.Height = 445.000000000000000000
       end
       object ComboBox3: TComboBox
         Align = Bottom
@@ -283,8 +283,8 @@ object Form12: TForm12
           Size.Height = 290.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 1
-          Viewport.Width = 322.000000000000000000
-          Viewport.Height = 290.000000000000000000
+          Viewport.Width = 318.000000000000000000
+          Viewport.Height = 286.000000000000000000
         end
         object Splitter1: TSplitter
           Align = Bottom
@@ -351,8 +351,8 @@ object Form12: TForm12
       CustomIcon = <
         item
         end>
-      IsSelected = True
-      Size.Width = 82.000000000000000000
+      IsSelected = False
+      Size.Width = 81.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
       StyleLookup = ''
