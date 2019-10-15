@@ -9,8 +9,7 @@ uses
   System.Threading,
   System.SyncObjs,
   System.Net.Socket,
-  System.Net.URLClient,
-  FMX.Types;
+  System.Net.URLClient;
 
 type
 
@@ -28,6 +27,8 @@ type
     function GetHandle: TSocketHandle;
     function GetAddress: string;
     function GetRemoteAddress: string;
+  class var
+    FUnloaded: Boolean;
   protected
     function Connected: Boolean;
     procedure DoConnect(const NetEndpoint: TNetEndpoint);
@@ -162,8 +163,11 @@ end;
 procedure TTCPSocket.Connect(const URL: string);
 var URI: TURI;
 begin
+
   URI.Create('://'+URL);
+
   Connect(URI.Host,URI.Port);
+
 end;
 
 procedure TTCPSocket.Connect;
@@ -221,7 +225,7 @@ begin
 
     Disconnect;
 
-    C.Leave;
+    if not FUnloaded then C.Leave;
 
     TThread.Synchronize(nil,
 
@@ -295,6 +299,7 @@ begin
       while True do
       try
 
+        FAcceptSocket.Free;
         FAcceptSocket:=FSocket.Accept;
 
         TThread.Synchronize(nil,
@@ -324,8 +329,21 @@ end;
 
 function TTCPSocket.GetAcceptSocket(Take: Boolean=True): TSocket;
 begin
+
   Result:=FAcceptSocket;
+
   if Take then FAcceptSocket:=nil;
+
 end;
+
+function TerminateProc: Boolean;
+begin
+  TTCPSocket.FUnloaded:=True;
+  Result:=True;
+end;
+
+initialization
+
+  AddTerminateProc(TerminateProc);
 
 end.

@@ -106,6 +106,7 @@ type
     procedure UpdateClients;
     procedure OnTCPServerListen(Sender: TObject);
     procedure OnTCPServerClose(Sender: TObject);
+    procedure OnTCPServerExcept(Sender: TObject);
     procedure OnAccept(Sender: TObject);
     procedure OnClientReceived(Sender: TObject);
     procedure OnClientClose(Sender: TObject);
@@ -170,7 +171,7 @@ begin
   TCPServer:=TTCPSocket.Create;
   TCPServer.OnConnect:=OnTCPServerListen;
   TCPServer.OnClose:=OnTCPServerClose;
-  TCPServer.OnExcept:=OnHTTPExcept;
+  TCPServer.OnExcept:=OnTCPServerExcept;
   TCPServer.OnAccept:=OnAccept;
 
   TCPClients:=TObjectList<TTCPSocket>.Create;
@@ -398,6 +399,11 @@ begin
   Circle3.Fill.Color:=claRed;
 end;
 
+procedure TForm12.OnTCPServerExcept(Sender: TObject);
+begin
+  ToMemo(Memo3,TCPServer.E.Message);
+end;
+
 procedure TForm12.OnAccept(Sender: TObject);
 var Client: TTCPSocket;
 begin
@@ -483,7 +489,7 @@ end;
 
 procedure TForm12.OnHTTPExcept(Sender: TObject);
 begin
-  ToMemo(Memo4,TCPSocket.E.Message);
+  ToMemo(Memo4,TTCPSocket(Sender).E.Message);
 end;
 
 end.
