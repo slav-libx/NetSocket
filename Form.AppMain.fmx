@@ -17,7 +17,7 @@ object Form12: TForm12
     Size.Width = 342.000000000000000000
     Size.Height = 590.000000000000000000
     Size.PlatformDefault = False
-    TabIndex = 2
+    TabIndex = 3
     TabOrder = 3
     TabPosition = PlatformDefault
     Sizes = (
@@ -125,7 +125,7 @@ object Form12: TForm12
         item
         end>
       IsSelected = False
-      Size.Width = 74.000000000000000000
+      Size.Width = 73.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
       StyleLookup = ''
@@ -229,7 +229,7 @@ object Form12: TForm12
       CustomIcon = <
         item
         end>
-      IsSelected = True
+      IsSelected = False
       Size.Width = 79.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
@@ -352,8 +352,8 @@ object Form12: TForm12
       CustomIcon = <
         item
         end>
-      IsSelected = False
-      Size.Width = 81.000000000000000000
+      IsSelected = True
+      Size.Width = 82.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
       StyleLookup = ''

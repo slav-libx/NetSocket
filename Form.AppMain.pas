@@ -207,6 +207,7 @@ begin
   ComboBox1.Items.Add('http://192.168.0.103:8080/');
   ComboBox1.Items.Add('http://192.168.0.106:80/');
   ComboBox1.Items.Add('http://192.168.0.106:8080/');
+  ComboBox1.Items.Add('http://192.168.22.15:80/');
   ComboBox1.Items.Add('http://history-maps.ru/pictures/max/0/1764.jpg');
   ComboBox1.Items.Add('http://zagony.ru/admin_new/foto/2019-9-23/1569240641/festival_piva_oktoberfest2019_v_mjunkhene_22_foto_14.jpg');
   ComboBox1.Items.Add('');
