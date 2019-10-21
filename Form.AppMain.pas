@@ -208,6 +208,7 @@ begin
   ComboBox1.Items.Add('http://192.168.0.106:80/');
   ComboBox1.Items.Add('http://192.168.0.106:8080/');
   ComboBox1.Items.Add('http://192.168.22.15:80/');
+  ComboBox1.Items.Add('http://185.182.193.17:80/');
   ComboBox1.Items.Add('http://history-maps.ru/pictures/max/0/1764.jpg');
   ComboBox1.Items.Add('http://zagony.ru/admin_new/foto/2019-9-23/1569240641/festival_piva_oktoberfest2019_v_mjunkhene_22_foto_14.jpg');
   ComboBox1.Items.Add('');
@@ -219,13 +220,16 @@ begin
 
   ComboBox2.Items.Add('185.182.193.15:5555');
   ComboBox2.Items.Add('localhost:5555');
-
   ComboBox2.ItemIndex:=1;
 
   ComboBox3.Items.Add('5555');
   ComboBox3.Items.Add('8080');
-
   ComboBox3.ItemIndex:=0;
+
+  ComboBox4.Items.Add('80');
+  ComboBox4.Items.Add('8080');
+  ComboBox4.Items.Add('5555');
+  ComboBox4.ItemIndex:=0;
 
 end;
 
@@ -476,7 +480,7 @@ end;
 
 procedure TForm12.Button10Click(Sender: TObject);
 begin
-  HTTPServer.Start(HTTP_PORT);
+  HTTPServer.Start(StrToInt(ComboBox4.Items[ComboBox4.ItemIndex]));
 end;
 
 procedure TForm12.Button11Click(Sender: TObject);
