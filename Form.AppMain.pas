@@ -84,6 +84,8 @@ type
     procedure Button10Click(Sender: TObject);
     procedure Button11Click(Sender: TObject);
     procedure Button12Click(Sender: TObject);
+    procedure Circle4Click(Sender: TObject);
+    procedure Circle3Click(Sender: TObject);
   private
     HTTPClient: THTTPClient;
     FResponseIndex: Integer;
@@ -103,18 +105,22 @@ type
   private
     TCPServer: TTCPSocket;
     TCPClients: TObjectList<TTCPSocket>;
-    procedure UpdateClients;
+    procedure OnTCPClientsListChange(Sender: TObject; const Client: TTCPSocket; Action: TCollectionNotification);
     procedure OnTCPServerListen(Sender: TObject);
     procedure OnTCPServerClose(Sender: TObject);
     procedure OnTCPServerExcept(Sender: TObject);
-    procedure OnAccept(Sender: TObject);
-    procedure OnClientReceived(Sender: TObject);
-    procedure OnClientClose(Sender: TObject);
+    procedure OnTCPServerAccept(Sender: TObject);
+    procedure OnTCPServerClientReceived(Sender: TObject);
+    procedure OnTCPServerClientClose(Sender: TObject);
+    procedure OnTCPServerClientExcept(Sender: TObject);
   private
     HTTPServer: TTCPSocket;
     HTTPClients: TObjectList<THTTPServerClient>;
-    procedure UpdateHTTPClients;
-    procedure OnHTTPExcept(Sender: TObject);
+    procedure OnHTTPClientsListChange(Sender: TObject; const Client: THTTPServerClient; Action: TCollectionNotification);
+    procedure OnHTTPServerListen(Sender: TObject);
+    procedure OnHTTPServerClose(Sender: TObject);
+    procedure OnHTTPServerExcept(Sender: TObject);
+    procedure OnHTTPClientExcept(Sender: TObject);
     procedure OnHTTPAccept(Sender: TObject);
     procedure OnHTTPRequest(Sender: TObject);
     procedure OnHTTPClientClose(Sender: TObject);
@@ -172,18 +178,21 @@ begin
   TCPServer.OnConnect:=OnTCPServerListen;
   TCPServer.OnClose:=OnTCPServerClose;
   TCPServer.OnExcept:=OnTCPServerExcept;
-  TCPServer.OnAccept:=OnAccept;
+  TCPServer.OnAccept:=OnTCPServerAccept;
 
   TCPClients:=TObjectList<TTCPSocket>.Create;
-
-  UpdateClients;
+  TCPClients.OnNotify:=OnTCPClientsListChange;
+  OnTCPClientsListChange(nil,nil,cnAdding);
 
   HTTPServer:=TTCPSocket.Create;
+  HTTPServer.OnConnect:=OnHTTPServerListen;
+  HTTPServer.OnClose:=OnHTTPServerClose;
   HTTPServer.OnAccept:=OnHTTPAccept;
+  HTTPServer.OnExcept:=OnHTTPServerExcept;
 
   HTTPClients:=TObjectList<THTTPServerClient>.Create;
-
-  UpdateHTTPClients;
+  HTTPClients.OnNotify:=OnHTTPClientsListChange;
+  OnHTTPClientsListChange(nil,nil,cnAdding);
 
   ComboBox1.Items.Add('http://185.182.193.15/api/node/?identity=BFC9AA5719DE2F25E5E8A7FE5D21C95B');
   ComboBox1.Items.Add('http://www.ancestryimages.com/stockimages/sm0112-Essex-Moule-l.jpg');
@@ -195,6 +204,9 @@ begin
   ComboBox1.Items.Add('http://localhost/2.jpg');
   ComboBox1.Items.Add('http://localhost:'+HTTP_PORT.ToString+'/2.jpg');
   ComboBox1.Items.Add('http://localhost:'+HTTP_PORT.ToString+'/9.jpg');
+  ComboBox1.Items.Add('http://192.168.0.103:8080/');
+  ComboBox1.Items.Add('http://192.168.0.106:80/');
+  ComboBox1.Items.Add('http://192.168.0.106:8080/');
   ComboBox1.Items.Add('http://history-maps.ru/pictures/max/0/1764.jpg');
   ComboBox1.Items.Add('http://zagony.ru/admin_new/foto/2019-9-23/1569240641/festival_piva_oktoberfest2019_v_mjunkhene_22_foto_14.jpg');
   ComboBox1.Items.Add('');
@@ -207,7 +219,7 @@ begin
   ComboBox2.Items.Add('185.182.193.15:5555');
   ComboBox2.Items.Add('localhost:5555');
 
-  ComboBox2.ItemIndex:=0;
+  ComboBox2.ItemIndex:=1;
 
   ComboBox3.Items.Add('5555');
   ComboBox3.Items.Add('8080');
@@ -271,6 +283,7 @@ end;
 procedure TForm12.Button5Click(Sender: TObject);
 begin
   HTTPClient.Disconnect;
+  SetConnect(False);
 end;
 
 procedure TForm12.OnConnect(Sender: TObject);
@@ -358,6 +371,7 @@ end;
 procedure TForm12.Button2Click(Sender: TObject);
 begin
   TCPSocket.Disconnect;
+  OnTCPClose(TCPSocket);
 end;
 
 procedure TForm12.Button6Click(Sender: TObject);
@@ -367,8 +381,9 @@ end;
 
 // TCP Server
 
-procedure TForm12.UpdateClients;
+procedure TForm12.OnTCPClientsListChange(Sender: TObject; const Client: TTCPSocket; Action: TCollectionNotification);
 begin
+  if not Application.Terminated then
   Label1.Text:=TCPClients.Count.ToString;
 end;
 
@@ -380,6 +395,7 @@ end;
 procedure TForm12.Button8Click(Sender: TObject);
 begin
   TCPServer.Disconnect;
+  OnTCPServerClose(nil);
 end;
 
 procedure TForm12.Button9Click(Sender: TObject);
@@ -389,7 +405,6 @@ end;
 
 procedure TForm12.OnTCPServerListen(Sender: TObject);
 begin
-  if not Application.Terminated then
   Circle3.Fill.Color:=claGreen;
 end;
 
@@ -404,53 +419,85 @@ begin
   ToMemo(Memo3,TCPServer.E.Message);
 end;
 
-procedure TForm12.OnAccept(Sender: TObject);
+procedure TForm12.Circle3Click(Sender: TObject);
+begin
+  if TCPClients.Count>0 then
+  begin
+    TCPClients.Last.Disconnect;
+    TCPClients.Remove(TCPClients.Last);
+  end;
+end;
+
+procedure TForm12.OnTCPServerAccept(Sender: TObject);
 var Client: TTCPSocket;
 begin
   Client:=TTCPSocket.Create(TCPServer.GetAcceptSocket);
-  Client.OnReceived:=OnClientReceived;
-  Client.OnClose:=OnClientClose;
+  Client.OnReceived:=OnTCPServerClientReceived;
+  Client.OnClose:=OnTCPServerClientClose;
+  Client.OnExcept:=OnTCPServerClientExcept;
   Client.Connect;
   TCPClients.Add(Client);
-  UpdateClients;
   ToMemo(Memo3,'Connected RemoteAddress: '+Client.RemoteAddress);
 end;
 
-procedure TForm12.OnClientReceived(Sender: TObject);
+procedure TForm12.OnTCPServerClientReceived(Sender: TObject);
 begin
   ToMemo(Memo3,TTCPSocket(Sender).ReceiveString);
 end;
 
-procedure TForm12.OnClientClose(Sender: TObject);
+procedure TForm12.OnTCPServerClientClose(Sender: TObject);
 begin
   TCPClients.Remove(TTCPSocket(Sender));
-  UpdateClients;
   ToMemo(Memo3,'Disconnected');
+end;
+
+procedure TForm12.OnTCPServerClientExcept(Sender: TObject);
+begin
+  ToMemo(Memo3,TTCPSocket(Sender).E.Message);
 end;
 
 // HTTP Server
 
-procedure TForm12.UpdateHTTPClients;
+procedure TForm12.OnHTTPClientsListChange(Sender: TObject; const Client: THTTPServerClient; Action: TCollectionNotification);
 begin
   if not Application.Terminated then
   Label2.Text:=HTTPClients.Count.ToString;
 end;
 
+procedure TForm12.Circle4Click(Sender: TObject);
+begin
+  if HTTPClients.Count>0 then
+  begin
+    HTTPClients.Last.Disconnect;
+    HTTPClients.Remove(HTTPClients.Last);
+  end;
+end;
+
 procedure TForm12.Button10Click(Sender: TObject);
 begin
   HTTPServer.Start(HTTP_PORT);
-  Circle4.Fill.Color:=claGreen;
 end;
 
 procedure TForm12.Button11Click(Sender: TObject);
 begin
   HTTPServer.Disconnect;
-  Circle4.Fill.Color:=claRed;
+  OnHTTPServerClose(nil);
 end;
 
 procedure TForm12.Button12Click(Sender: TObject);
 begin
   Memo4.Lines.Clear;
+end;
+
+procedure TForm12.OnHTTPServerListen(Sender: TObject);
+begin
+  Circle4.Fill.Color:=claGreen;
+end;
+
+procedure TForm12.OnHTTPServerClose(Sender: TObject);
+begin
+  if not Application.Terminated then
+  Circle4.Fill.Color:=claRed;
 end;
 
 procedure TForm12.OnHTTPAccept(Sender: TObject);
@@ -459,10 +506,9 @@ begin
   Client:=THTTPServerClient.Create(HTTPServer.GetAcceptSocket);
   Client.OnClose:=OnHTTPClientClose;
   Client.OnRequest:=OnHTTPRequest;
-  Client.OnExcept:=OnHTTPExcept;
+  Client.OnExcept:=OnHTTPClientExcept;
   Client.Connect;
   HTTPClients.Add(Client);
-  UpdateHTTPClients;
   ToMemo(Memo4,'Connected RemoteAddress: '+Client.RemoteAddress);
 end;
 
@@ -483,11 +529,15 @@ end;
 procedure TForm12.OnHTTPClientClose(Sender: TObject);
 begin
   HTTPClients.Remove(THTTPServerClient(Sender));
-  UpdateHTTPClients;
   ToMemo(Memo4,'Disconnected');
 end;
 
-procedure TForm12.OnHTTPExcept(Sender: TObject);
+procedure TForm12.OnHTTPServerExcept(Sender: TObject);
+begin
+  ToMemo(Memo4,HTTPServer.E.Message);
+end;
+
+procedure TForm12.OnHTTPClientExcept(Sender: TObject);
 begin
   ToMemo(Memo4,TTCPSocket(Sender).E.Message);
 end;

@@ -13,6 +13,12 @@ uses
 
 type
 
+  ICancellationToken = interface
+    procedure SetCancelled(Value: Boolean);
+    function GetCancelled: Boolean;
+    property Cancelled: Boolean read GetCancelled write SetCancelled;
+  end;
+
   TTCPSocket = class
   private
     FSocket: TSocket;
@@ -23,12 +29,12 @@ type
     FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
-    C: TCriticalSection;
+    FLock: TCriticalSection;
+    FCancellationToken: ICancellationToken;
+    FCloseForce: Boolean;
     function GetHandle: TSocketHandle;
     function GetAddress: string;
     function GetRemoteAddress: string;
-  class var
-    FUnloaded: Boolean;
   protected
     function Connected: Boolean;
     procedure DoConnect(const NetEndpoint: TNetEndpoint);
@@ -37,6 +43,7 @@ type
     procedure DoReceived; virtual;
     procedure DoClose;
     procedure DoExcept(E: Exception); virtual;
+    procedure DoAccept;
     property Socket: TSocket read FSocket;
   public
     constructor Create(Socket: TSocket); overload; virtual;
@@ -64,11 +71,32 @@ implementation
 
 // https://docs.microsoft.com/ru-ru/dotnet/framework/network-programming/asynchronous-client-socket-example?view=netframework-4.8
 
+type
+  TCancellationToken = class(TInterfacedObject,ICancellationToken)
+  private
+    FCancelled: Boolean;
+  public
+    procedure SetCancelled(Value: Boolean);
+    function GetCancelled: Boolean;
+  end;
+
+function TCancellationToken.GetCancelled: Boolean;
+begin
+  Result:=FCancelled;
+end;
+
+procedure TCancellationToken.SetCancelled(Value: Boolean);
+begin
+  FCancelled:=Value;
+end;
+
 constructor TTCPSocket.Create(Socket: TSocket);
 begin
+  FCloseForce:={$IFDEF POSIX}True{$ELSE}False{$ENDIF};
   FSocket:=Socket;
   FSocket.Encoding:=TEncoding.ANSI;
-  C:=TCriticalSection.Create;
+  FLock:=TCriticalSection.Create;
+  FCancellationToken:=TCancellationToken.Create;
 end;
 
 constructor TTCPSocket.Create;
@@ -78,10 +106,12 @@ end;
 
 destructor TTCPSocket.Destroy;
 begin
+  FCancellationToken.Cancelled:=True;
+  FCancellationToken:=nil;
   Disconnect;
   FAcceptSocket.Free;
   FSocket.Free;
-  C.Free;
+  FLock.Free;
 end;
 
 function TTCPSocket.GetAddress: string;
@@ -106,7 +136,7 @@ end;
 
 procedure TTCPSocket.Disconnect;
 begin
-  if Connected then Socket.Close(TSocketState.Listening in Socket.State);
+  if Connected then Socket.Close(FCloseForce);
 end;
 
 function TTCPSocket.Connected: Boolean;
@@ -150,10 +180,8 @@ begin
 
       end);
 
-    except on E: Exception do
-
-      DoExcept(E);
-
+    except
+      on E: Exception do DoExcept(E);
     end;
 
   end);
@@ -163,11 +191,8 @@ end;
 procedure TTCPSocket.Connect(const URL: string);
 var URI: TURI;
 begin
-
   URI.Create('://'+URL);
-
   Connect(URI.Host,URI.Port);
-
 end;
 
 procedure TTCPSocket.Connect;
@@ -184,12 +209,14 @@ begin
   TTask.Run(
 
   procedure
-  var Lost: Boolean;
+  var
+    Lost: Boolean;
+    CancellationToken: ICancellationToken;
   begin
 
-    C.Enter;
+    FLock.Enter;
 
-    Lost:=False;
+    CancellationToken:=FCancellationToken;
 
     try
 
@@ -203,36 +230,46 @@ begin
         DoAfterConnect;
       end);
 
-      while not Lost and (TSocketAccess(Socket).WaitForData=wrSignaled) do
+      Lost:=False;
 
-      TThread.Synchronize(nil,
-
-      procedure
+      while not Lost and Connected do
       begin
-        if Assigned(FSocket) and (Socket.ReceiveLength>0) then
-          DoReceived
-        else begin
 
-          Lost:=True;
-        end;
-      end);
+        {$IFDEF POSIX}
+        if TSocketAccess(Socket).WaitForData(250)=wrTimeout then Continue;
+        {$ELSE}
+        TSocketAccess(Socket).WaitForData;
+        {$ENDIF}
 
-    except on E: Exception do
+        TThread.Synchronize(nil,
+        procedure
+        begin
+          if Connected and (Socket.ReceiveLength>0) then
+            DoReceived
+          else
+            Lost:=True;
+        end);
 
-      DoExcept(E);
+      end;
 
+    except
+      on E: Exception do DoExcept(E);
     end;
 
-    Disconnect;
-
-    if not FUnloaded then C.Leave;
+    if Connected then
 
     TThread.Synchronize(nil,
 
     procedure
     begin
-      DoClose;
+      if Connected then
+      begin
+        Disconnect;
+        DoClose;
+      end;
     end);
+
+    if not CancellationToken.Cancelled then FLock.Leave;
 
   end);
 
@@ -240,50 +277,50 @@ end;
 
 procedure TTCPSocket.DoAfterConnect;
 begin
-
 end;
 
 procedure TTCPSocket.DoConnected;
 begin
-
   if Assigned(FOnConnect) then FOnConnect(Self);
-
 end;
 
 procedure TTCPSocket.DoReceived;
 begin
-
   if Assigned(FOnReceived) then FOnReceived(Self);
-
 end;
 
 procedure TTCPSocket.DoClose;
 begin
-
   if Assigned(FOnClose) then FOnClose(Self);
-
 end;
 
 procedure TTCPSocket.DoExcept(E: Exception);
 begin
 
+  if (E is ESocketError) and Assigned(FOnExcept) then
+
   TThread.Synchronize(nil,
 
   procedure
   begin
-    if (E is ESocketError) and Assigned(FOnExcept) then
-    begin
-      FException:=E;
-      FOnExcept(Self);
-      FException:=nil;
-    end else
-      ApplicationHandleException(E);
+    FException:=E;
+    FOnExcept(Self);
+    FException:=nil;
   end)
 
+  else ApplicationHandleException(E);
+
+end;
+
+procedure TTCPSocket.DoAccept;
+begin
+  FOnAccept(Self);
 end;
 
 procedure TTCPSocket.Start(Port: Word);
 begin
+
+  FCloseForce:=True;
 
   try
 
@@ -296,54 +333,52 @@ begin
     procedure
     begin
 
-      while True do
       try
 
+      while Connected do
+      begin
+
+        {$IFDEF POSIX}
+        if TSocketAccess(Socket).WaitForData(250)=wrTimeout then Continue;
+        {$ENDIF}
+
         FAcceptSocket.Free;
+        FAcceptSocket:=nil;
+
+        if not Connected then Break;
+
         FAcceptSocket:=FSocket.Accept;
 
-        TThread.Synchronize(nil,
+        TThread.Synchronize(nil,DoAccept);
 
-        procedure
-        begin
-          FOnAccept(Self);
-        end);
-
-      except
-      on E: ESocketError do Break; // Network socket error: WSACancelBlockingCall (10004), on API 'accept'
-      else ApplicationHandleException(E);
       end;
 
-      Disconnect;
-      DoClose;
+      except
+        on E: Exception do DoExcept(E);
+      end;
+
+      if Connected then
+
+      TThread.Synchronize(nil,
+
+      procedure
+      begin
+        Disconnect;
+        DoClose;
+      end);
 
     end);
 
-  except on E: Exception do
-
-    DoExcept(E);
-
+  except
+    on E: Exception do DoExcept(E);
   end;
 
 end;
 
 function TTCPSocket.GetAcceptSocket(Take: Boolean=True): TSocket;
 begin
-
   Result:=FAcceptSocket;
-
   if Take then FAcceptSocket:=nil;
-
 end;
-
-function TerminateProc: Boolean;
-begin
-  TTCPSocket.FUnloaded:=True;
-  Result:=True;
-end;
-
-initialization
-
-  AddTerminateProc(TerminateProc);
 
 end.
