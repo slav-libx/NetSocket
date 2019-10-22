@@ -13,10 +13,9 @@ uses
 
 type
 
-  ICancellationToken = interface
-    procedure SetCancelled(Value: Boolean);
-    function GetCancelled: Boolean;
-    property Cancelled: Boolean read GetCancelled write SetCancelled;
+  ILock = interface
+    procedure Enter;
+    procedure Leave;
   end;
 
   TTCPSocket = class
@@ -29,14 +28,13 @@ type
     FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
-    FLock: TCriticalSection;
-    FCancellationToken: ICancellationToken;
+    FLock: ILock;
     FCloseForce: Boolean;
     function GetHandle: TSocketHandle;
     function GetAddress: string;
     function GetRemoteAddress: string;
+    function GetLocalHost: string;
   protected
-    function Connected: Boolean;
     procedure DoConnect(const NetEndpoint: TNetEndpoint);
     procedure DoAfterConnect; virtual;
     procedure DoConnected; virtual;
@@ -44,8 +42,13 @@ type
     procedure DoClose;
     procedure DoExcept(E: Exception); virtual;
     procedure DoAccept;
+    procedure HandleException(E: Exception);
     property Socket: TSocket read FSocket;
   public
+{$IFDEF AUTOREFCOUNT}
+    function __ObjAddRef: Integer; override;
+    function __ObjRelease: Integer; override;
+{$ENDIF}
     constructor Create(Socket: TSocket); overload; virtual;
     constructor Create; overload; virtual;
     destructor Destroy; override;
@@ -54,11 +57,15 @@ type
     procedure Connect; overload;
     procedure Start(Port: Word);
     procedure Disconnect;
+    function Connected: Boolean;
     function GetAcceptSocket(Take: Boolean=True): TSocket;
+    function Receive: TBytes;
     function ReceiveString: string;
+    function Send(const Buf; Count: Integer): Integer;
     property Handle: TSocketHandle read GetHandle;
     property Address: string read GetAddress;
     property RemoteAddress: string read GetRemoteAddress;
+    property LocalHost: string read GetLocalHost;
     property E: Exception read FException;
     property OnConnect: TNotifyEvent read FOnConnect write FOnConnect;
     property OnClose: TNotifyEvent read FOnClose write FOnClose;
@@ -72,31 +79,54 @@ implementation
 // https://docs.microsoft.com/ru-ru/dotnet/framework/network-programming/asynchronous-client-socket-example?view=netframework-4.8
 
 type
-  TCancellationToken = class(TInterfacedObject,ICancellationToken)
+  TLock = class(TInterfacedObject,ILock)
   private
-    FCancelled: Boolean;
+    FLock: TCriticalSection;
   public
-    procedure SetCancelled(Value: Boolean);
-    function GetCancelled: Boolean;
+    constructor Create;
+    destructor Destroy; override;
+    procedure Enter;
+    procedure Leave;
   end;
 
-function TCancellationToken.GetCancelled: Boolean;
+constructor TLock.Create;
 begin
-  Result:=FCancelled;
+  FLock:=TCriticalSection.Create;
 end;
 
-procedure TCancellationToken.SetCancelled(Value: Boolean);
+destructor TLock.Destroy;
 begin
-  FCancelled:=Value;
+  FLock.Free;
+  inherited;
 end;
+
+procedure TLock.Enter;
+begin
+  FLock.Enter;
+end;
+
+procedure TLock.Leave;
+begin
+  FLock.Leave;
+end;
+
+{$IFDEF AUTOREFCOUNT}
+function TTCPSocket.__ObjAddRef: Integer;
+begin
+Result:=inherited;
+end;
+function TTCPSocket.__ObjRelease: Integer;
+begin
+Result:=inherited;
+end;
+{$ENDIF}
 
 constructor TTCPSocket.Create(Socket: TSocket);
 begin
   FCloseForce:={$IFDEF POSIX}True{$ELSE}False{$ENDIF};
   FSocket:=Socket;
   FSocket.Encoding:=TEncoding.ANSI;
-  FLock:=TCriticalSection.Create;
-  FCancellationToken:=TCancellationToken.Create;
+  FLock:=TLock.Create;
 end;
 
 constructor TTCPSocket.Create;
@@ -106,12 +136,10 @@ end;
 
 destructor TTCPSocket.Destroy;
 begin
-  FCancellationToken.Cancelled:=True;
-  FCancellationToken:=nil;
-  Disconnect;
+  FLock:=nil;
+  Disconnect; // иначе будет вызов Close(False) для сервера
   FAcceptSocket.Free;
   FSocket.Free;
-  FLock.Free;
 end;
 
 function TTCPSocket.GetAddress: string;
@@ -129,9 +157,24 @@ begin
   Result:=Socket.RemoteAddress;
 end;
 
+function TTCPSocket.GetLocalHost: string;
+begin
+  Result:=Socket.LocalHost;
+end;
+
+function TTCPSocket.Receive: TBytes;
+begin
+  Result:=Socket.Receive;
+end;
+
 function TTCPSocket.ReceiveString: string;
 begin
   Result:=Socket.ReceiveString;
+end;
+
+function TTCPSocket.Send(const Buf; Count: Integer): Integer;
+begin
+  Result:=Socket.Send(Buf,Count);
 end;
 
 procedure TTCPSocket.Disconnect;
@@ -211,12 +254,12 @@ begin
   procedure
   var
     Lost: Boolean;
-    CancellationToken: ICancellationToken;
+    Lock: ILock;
   begin
 
-    FLock.Enter;
+    Lock:=FLock;
 
-    CancellationToken:=FCancellationToken;
+    Lock.Enter;
 
     try
 
@@ -241,14 +284,25 @@ begin
         TSocketAccess(Socket).WaitForData;
         {$ENDIF}
 
+        try
+
         TThread.Synchronize(nil,
         procedure
+        var O: TObject;
         begin
           if Connected and (Socket.ReceiveLength>0) then
             DoReceived
           else
             Lost:=True;
         end);
+
+        // любые ошибки сокета должны приводить к выходу из цикла чтения данных из сокета
+        // другие ошибки возбуждают исключение в основном потоке приложения
+
+        except
+          on E: ESocketError do raise E;
+          on E: Exception do HandleException(E);
+        end;
 
       end;
 
@@ -269,7 +323,7 @@ begin
       end;
     end);
 
-    if not CancellationToken.Cancelled then FLock.Leave;
+    Lock.Leave;
 
   end);
 
@@ -308,7 +362,20 @@ begin
     FException:=nil;
   end)
 
-  else ApplicationHandleException(E);
+  else HandleException(E);
+
+end;
+
+procedure TTCPSocket.HandleException(E: Exception);
+begin
+
+  AcquireExceptionObject;
+
+  TThread.Queue(nil,
+  procedure
+  begin
+    raise E;
+  end);
 
 end;
 
@@ -349,12 +416,15 @@ begin
 
         FAcceptSocket:=FSocket.Accept;
 
+        if not Connected then Break;
+
         TThread.Synchronize(nil,DoAccept);
 
       end;
 
       except
-        on E: Exception do DoExcept(E);
+        on E: ESocketError do;
+        on E: Exception do HandleException(E);
       end;
 
       if Connected then

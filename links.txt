@@ -1,2 +1,4 @@
-﻿https://www.sql.ru/forum/603799/tmultireadexclusivewritesynchronizer
+﻿https://docs.microsoft.com/ru-ru/dotnet/framework/network-programming/asynchronous-client-socket-example?view=netframework-4.8
+
+https://www.sql.ru/forum/603799/tmultireadexclusivewritesynchronizer
 http://it.kgsu.ru/DelCOM/com_0294.html
