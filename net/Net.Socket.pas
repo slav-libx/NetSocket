@@ -76,8 +76,6 @@ type
 
 implementation
 
-// https://docs.microsoft.com/ru-ru/dotnet/framework/network-programming/asynchronous-client-socket-example?view=netframework-4.8
-
 type
   TLock = class(TInterfacedObject,ILock)
   private

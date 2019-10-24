@@ -235,12 +235,19 @@ end;
 
 procedure TForm12.FormDestroy(Sender: TObject);
 begin
+
+  HTTPClient.Disconnect;
+  HTTPServer.Disconnect;
+  TCPSocket.Disconnect;
+  TCPServer.Disconnect;
+
   TCPClients.Free;
   TCPSocket.Free;
   HTTPClient.Free;
   TCPServer.Free;
   HTTPServer.Free;
   HTTPClients.Free;
+
 end;
 
 procedure TForm12.ShowBitmap;
@@ -303,6 +310,7 @@ end;
 
 procedure TForm12.OnExcept(Sender: TObject);
 begin
+  if not Application.Terminated then
   ToMemo(Memo1,HTTPClient.E.Message);
 end;
 
