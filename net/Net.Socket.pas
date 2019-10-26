@@ -41,8 +41,9 @@ type
     procedure DoAfterConnect; virtual;
     procedure DoConnected; virtual;
     procedure DoReceived; virtual;
-    procedure DoClose;
-    procedure DoExcept(E: Exception); virtual;
+    procedure DoClose; virtual;
+    procedure DoHandleException(E: Exception); virtual;
+    procedure DoExcept; virtual;
     procedure DoAccept;
     procedure HandleUIException(E: Exception);
     property Socket: TSocket read FSocket;
@@ -226,7 +227,7 @@ begin
       end);
 
     except
-      on E: Exception do DoExcept(E);
+      on E: Exception do DoHandleException(E);
     end;
 
   end);
@@ -303,14 +304,14 @@ begin
         // другие ошибки возбуждают исключение в основном потоке приложения
 
         except
-          on E: ESocketError do raise E;
+          on E: ESocketError do raise;
           on E: Exception do HandleUIException(E);
         end;
 
       end;
 
     except
-      on E: Exception do DoExcept(E);
+      on E: Exception do DoHandleException(E);
     end;
 
     if Connected then
@@ -351,7 +352,12 @@ begin
   if Assigned(FOnClose) then FOnClose(Self);
 end;
 
-procedure TTCPSocket.DoExcept(E: Exception);
+procedure TTCPSocket.DoExcept;
+begin
+  if Assigned(FOnExcept) then FOnExcept(Self);
+end;
+
+procedure TTCPSocket.DoHandleException(E: Exception);
 begin
 
   if Assigned(FLock) then
@@ -363,7 +369,7 @@ begin
   procedure
   begin
     FException:=E;
-    FOnExcept(Self);
+    DoExcept;
     FException:=nil;
   end)
 
@@ -444,7 +450,7 @@ begin
     end);
 
   except
-    on E: Exception do DoExcept(E);
+    on E: Exception do DoHandleException(E);
   end;
 
 end;
