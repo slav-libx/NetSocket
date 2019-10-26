@@ -30,10 +30,12 @@ type
     FException: Exception;
     FLock: ILock;
     FCloseForce: Boolean;
+    [weak]FSyncThread: TThread;
     function GetHandle: TSocketHandle;
     function GetAddress: string;
     function GetRemoteAddress: string;
     function GetLocalHost: string;
+    function GetHostAddress: string;
   protected
     procedure DoConnect(const NetEndpoint: TNetEndpoint);
     procedure DoAfterConnect; virtual;
@@ -42,16 +44,13 @@ type
     procedure DoClose;
     procedure DoExcept(E: Exception); virtual;
     procedure DoAccept;
-    procedure HandleException(E: Exception);
+    procedure HandleUIException(E: Exception);
     property Socket: TSocket read FSocket;
   public
-{$IFDEF AUTOREFCOUNT}
-    function __ObjAddRef: Integer; override;
-    function __ObjRelease: Integer; override;
-{$ENDIF}
     constructor Create(Socket: TSocket); overload; virtual;
     constructor Create; overload; virtual;
     destructor Destroy; override;
+    procedure Terminate;
     procedure Connect(const Address: string; Port: Word); overload;
     procedure Connect(const URL: string); overload;
     procedure Connect; overload;
@@ -66,7 +65,9 @@ type
     property Address: string read GetAddress;
     property RemoteAddress: string read GetRemoteAddress;
     property LocalHost: string read GetLocalHost;
+    property HostAddress: string read GetHostAddress;
     property E: Exception read FException;
+    property SyncThread: TThread read FSyncThread write FSyncThread;
     property OnConnect: TNotifyEvent read FOnConnect write FOnConnect;
     property OnClose: TNotifyEvent read FOnClose write FOnClose;
     property OnReceived: TNotifyEvent read FOnReceived write FOnReceived;
@@ -108,17 +109,6 @@ begin
   FLock.Leave;
 end;
 
-{$IFDEF AUTOREFCOUNT}
-function TTCPSocket.__ObjAddRef: Integer;
-begin
-Result:=inherited;
-end;
-function TTCPSocket.__ObjRelease: Integer;
-begin
-Result:=inherited;
-end;
-{$ENDIF}
-
 constructor TTCPSocket.Create(Socket: TSocket);
 begin
   FCloseForce:={$IFDEF POSIX}True{$ELSE}False{$ENDIF};
@@ -134,10 +124,15 @@ end;
 
 destructor TTCPSocket.Destroy;
 begin
-  FLock:=nil;
-  Disconnect; // иначе будет вызов Close(False) для сервера
+  Terminate;
   FAcceptSocket.Free;
   FSocket.Free;
+end;
+
+procedure TTCPSocket.Terminate;
+begin
+  FLock:=nil;
+  Disconnect; // иначе будет вызов Close(False) для сервера
 end;
 
 function TTCPSocket.GetAddress: string;
@@ -160,6 +155,11 @@ begin
   Result:=Socket.LocalHost;
 end;
 
+function TTCPSocket.GetHostAddress: string;
+begin
+  Result:=TIPAddress.LookupName(LocalHost).Address;
+end;
+
 function TTCPSocket.Receive: TBytes;
 begin
   Result:=Socket.Receive;
@@ -177,12 +177,13 @@ end;
 
 procedure TTCPSocket.Disconnect;
 begin
-  if Connected then Socket.Close(FCloseForce);
+  if TSocketState.Connected in Socket.State then
+    Socket.Close(FCloseForce);
 end;
 
 function TTCPSocket.Connected: Boolean;
 begin
-  Result:=Assigned(Socket) and (TSocketState.Connected in Socket.State);
+  Result:=Assigned(FLock) and Assigned(FSocket) and (TSocketState.Connected in Socket.State);
 end;
 
 function CompareEndpoints(const EndPoint1,EndPoint2: TNetEndpoint): Boolean;
@@ -204,19 +205,22 @@ begin
 
       NetEndpoint:=TNetEndpoint.Create(TIPAddress.Create(Address),Port);
 
-      TThread.Synchronize(nil,
+      TThread.Synchronize(SyncThread,
 
       procedure
       begin
 
         if Connected then
+
           if CompareEndpoints(NetEndpoint,Socket.Endpoint) then
             DoAfterConnect
           else begin
             Disconnect;
             DoConnect(NetEndpoint);
           end
+
         else
+
           DoConnect(NetEndpoint);
 
       end);
@@ -263,7 +267,7 @@ begin
 
       if not Connected then Socket.Connect(NetEndpoint);
 
-      TThread.Synchronize(nil,
+      TThread.Synchronize(SyncThread,
 
       procedure
       begin
@@ -282,11 +286,12 @@ begin
         TSocketAccess(Socket).WaitForData;
         {$ENDIF}
 
+        if Connected then
+
         try
 
-        TThread.Synchronize(nil,
+        TThread.Synchronize(SyncThread,
         procedure
-        var O: TObject;
         begin
           if Connected and (Socket.ReceiveLength>0) then
             DoReceived
@@ -299,7 +304,7 @@ begin
 
         except
           on E: ESocketError do raise E;
-          on E: Exception do HandleException(E);
+          on E: Exception do HandleUIException(E);
         end;
 
       end;
@@ -310,7 +315,7 @@ begin
 
     if Connected then
 
-    TThread.Synchronize(nil,
+    TThread.Synchronize(SyncThread,
 
     procedure
     begin
@@ -349,9 +354,11 @@ end;
 procedure TTCPSocket.DoExcept(E: Exception);
 begin
 
+  if Assigned(FLock) then
+
   if (E is ESocketError) and Assigned(FOnExcept) then
 
-  TThread.Synchronize(nil,
+  TThread.Synchronize(SyncThread,
 
   procedure
   begin
@@ -360,11 +367,11 @@ begin
     FException:=nil;
   end)
 
-  else HandleException(E);
+  else HandleUIException(E);
 
 end;
 
-procedure TTCPSocket.HandleException(E: Exception);
+procedure TTCPSocket.HandleUIException(E: Exception);
 begin
 
   AcquireExceptionObject;
@@ -396,7 +403,10 @@ begin
     TTask.Run(
 
     procedure
+    var Lock: ILock;
     begin
+
+      Lock:=FLock;
 
       try
 
@@ -410,24 +420,20 @@ begin
         FAcceptSocket.Free;
         FAcceptSocket:=nil;
 
-        if not Connected then Break;
+        if Connected then FAcceptSocket:=FSocket.Accept;
 
-        FAcceptSocket:=FSocket.Accept;
-
-        if not Connected then Break;
-
-        TThread.Synchronize(nil,DoAccept);
+        if Connected then TThread.Synchronize(SyncThread,DoAccept);
 
       end;
 
       except
         on E: ESocketError do;
-        on E: Exception do HandleException(E);
+        on E: Exception do HandleUIException(E);
       end;
 
       if Connected then
 
-      TThread.Synchronize(nil,
+      TThread.Synchronize(SyncThread,
 
       procedure
       begin

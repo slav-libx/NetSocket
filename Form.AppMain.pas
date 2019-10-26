@@ -236,10 +236,10 @@ end;
 procedure TForm12.FormDestroy(Sender: TObject);
 begin
 
-  HTTPClient.Disconnect;
-  HTTPServer.Disconnect;
-  TCPSocket.Disconnect;
-  TCPServer.Disconnect;
+  HTTPClient.Terminate;
+  HTTPServer.Terminate;
+  TCPSocket.Terminate;
+  TCPServer.Terminate;
 
   TCPClients.Free;
   TCPSocket.Free;
@@ -396,6 +396,7 @@ end;
 
 procedure TForm12.OnTCPClientsListChange(Sender: TObject; const Client: TTCPSocket; Action: TCollectionNotification);
 begin
+  if Action=TCollectionNotification.cnRemoved then Client.Terminate;
   if not Application.Terminated then
   Label1.Text:=TCPClients.Count.ToString;
 end;
@@ -473,6 +474,7 @@ end;
 
 procedure TForm12.OnHTTPClientsListChange(Sender: TObject; const Client: THTTPServerClient; Action: TCollectionNotification);
 begin
+  if Action=TCollectionNotification.cnRemoved then Client.Terminate;
   if not Application.Terminated then
   Label2.Text:=HTTPClients.Count.ToString;
 end;
