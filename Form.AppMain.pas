@@ -220,6 +220,7 @@ begin
 
   ComboBox2.Items.Add('185.182.193.15:5555');
   ComboBox2.Items.Add('localhost:5555');
+  ComboBox2.Items.Add('190.2.146.26:5555');
   ComboBox2.ItemIndex:=1;
 
   ComboBox3.Items.Add('5555');

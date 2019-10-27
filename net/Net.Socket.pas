@@ -37,7 +37,7 @@ type
     function GetLocalHost: string;
     function GetHostAddress: string;
   protected
-    procedure DoConnect(const NetEndpoint: TNetEndpoint);
+    procedure DoConnect(const NetEndpoint: TNetEndpoint; Accepted: Boolean);
     procedure DoAfterConnect; virtual;
     procedure DoConnected; virtual;
     procedure DoReceived; virtual;
@@ -217,12 +217,12 @@ begin
             DoAfterConnect
           else begin
             Disconnect;
-            DoConnect(NetEndpoint);
+            DoConnect(NetEndpoint,False);
           end
 
         else
 
-          DoConnect(NetEndpoint);
+          DoConnect(NetEndpoint,False);
 
       end);
 
@@ -243,13 +243,13 @@ end;
 
 procedure TTCPSocket.Connect;
 begin
-  DoConnect(Socket.Endpoint);
+  DoConnect(Socket.Endpoint,True);
 end;
 
 type
   TSocketAccess = class(TSocket);
 
-procedure TTCPSocket.DoConnect(const NetEndpoint: TNetEndpoint);
+procedure TTCPSocket.DoConnect(const NetEndpoint: TNetEndpoint; Accepted: Boolean);
 begin
 
   TTask.Run(
@@ -266,7 +266,7 @@ begin
 
     try
 
-      if not Connected then Socket.Connect(NetEndpoint);
+      if not Accepted then Socket.Connect(NetEndpoint);
 
       TThread.Synchronize(SyncThread,
 
@@ -419,16 +419,25 @@ begin
       while Connected do
       begin
 
-        {$IFDEF POSIX}
-        if TSocketAccess(Socket).WaitForData(250)=wrTimeout then Continue;
-        {$ENDIF}
+//        {$IFDEF POSIX}
+//        if TSocketAccess(Socket).WaitForData(250)=wrTimeout then Continue;
+//        {$ENDIF}
+//
+//        FAcceptSocket.Free;
+//        FAcceptSocket:=nil;
+//
+//        if Connected then FAcceptSocket:=FSocket.Accept;
+//
+//        if Connected then TThread.Synchronize(SyncThread,DoAccept);
 
-        FAcceptSocket.Free;
-        FAcceptSocket:=nil;
+        FAcceptSocket:=FSocket.Accept{$IFDEF POSIX}(250){$ENDIF};
 
-        if Connected then FAcceptSocket:=FSocket.Accept;
-
-        if Connected then TThread.Synchronize(SyncThread,DoAccept);
+        if Assigned(FAcceptSocket) and Connected then
+        begin
+          TThread.Synchronize(SyncThread,DoAccept);
+          FAcceptSocket.Free;
+          FAcceptSocket:=nil;
+        end;
 
       end;
 

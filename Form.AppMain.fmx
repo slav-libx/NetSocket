@@ -55,8 +55,8 @@ object Form12: TForm12
         Size.Height = 449.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
-        Viewport.Width = 318.000000000000000000
-        Viewport.Height = 445.000000000000000000
+        Viewport.Width = 322.000000000000000000
+        Viewport.Height = 449.000000000000000000
       end
       object Layout3: TLayout
         Align = Bottom
@@ -209,8 +209,8 @@ object Form12: TForm12
         Size.Height = 449.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
-        Viewport.Width = 318.000000000000000000
-        Viewport.Height = 445.000000000000000000
+        Viewport.Width = 322.000000000000000000
+        Viewport.Height = 449.000000000000000000
       end
       object ComboBox3: TComboBox
         Align = Bottom
@@ -284,8 +284,8 @@ object Form12: TForm12
           Size.Height = 272.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 1
-          Viewport.Width = 318.000000000000000000
-          Viewport.Height = 268.000000000000000000
+          Viewport.Width = 322.000000000000000000
+          Viewport.Height = 272.000000000000000000
         end
         object Splitter1: TSplitter
           Align = Bottom
