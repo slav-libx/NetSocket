@@ -21,15 +21,20 @@ type
   TTCPSocket = class
   private
     FSocket: TSocket;
-    FAcceptSocket: TSocket;
+    FName: string;
+    FRemoteAddress: string;
     FOnConnect: TNotifyEvent;
     FOnClose: TNotifyEvent;
     FOnAccept: TNotifyEvent;
     FOnReceived: TNotifyEvent;
     FOnExcept: TNotifyEvent;
     FException: Exception;
+    FOnLog: TGetStrProc;
     FLock: ILock;
     FCloseForce: Boolean;
+    FTag: NativeInt;
+    FTagObject: TObject;
+    FTagString: string;
     [weak]FSyncThread: TThread;
     function GetHandle: TSocketHandle;
     function GetAddress: string;
@@ -45,6 +50,7 @@ type
     procedure DoHandleException(E: Exception); virtual;
     procedure DoExcept; virtual;
     procedure DoAccept;
+    procedure DoLog(const S: string);
     procedure HandleUIException(E: Exception);
     property Socket: TSocket read FSocket;
   public
@@ -58,7 +64,7 @@ type
     procedure Start(Port: Word);
     procedure Disconnect;
     function Connected: Boolean;
-    function GetAcceptSocket(Take: Boolean=True): TSocket;
+    function Accept: TSocket;
     function Receive: TBytes;
     function ReceiveString: string;
     function Send(const Buf; Count: Integer): Integer;
@@ -68,12 +74,17 @@ type
     property LocalHost: string read GetLocalHost;
     property HostAddress: string read GetHostAddress;
     property E: Exception read FException;
+    property Name: string read FName write FName;
+    property Tag: NativeInt read FTag write FTag default 0;
+    property TagObject: TObject read FTagObject write FTagObject;
+    property TagString: string read FTagString write FTagString;
     property SyncThread: TThread read FSyncThread write FSyncThread;
     property OnConnect: TNotifyEvent read FOnConnect write FOnConnect;
     property OnClose: TNotifyEvent read FOnClose write FOnClose;
     property OnReceived: TNotifyEvent read FOnReceived write FOnReceived;
     property OnExcept: TNotifyEvent read FOnExcept write FOnExcept;
     property OnAccept: TNotifyEvent read FOnAccept write FOnAccept;
+    property OnLog: TGetStrProc read FOnLog write FOnLog;
   end;
 
 implementation
@@ -110,10 +121,15 @@ begin
   FLock.Leave;
 end;
 
+var NameID: Integer=0;
+
 constructor TTCPSocket.Create(Socket: TSocket);
 begin
+  Inc(NameID);
+  FName:=NameID.ToString;
   FCloseForce:={$IFDEF POSIX}True{$ELSE}False{$ENDIF};
   FSocket:=Socket;
+  FRemoteAddress:=Socket.RemoteAddress;
   FSocket.Encoding:=TEncoding.ANSI;
   FLock:=TLock.Create;
 end;
@@ -126,7 +142,6 @@ end;
 destructor TTCPSocket.Destroy;
 begin
   Terminate;
-  FAcceptSocket.Free;
   FSocket.Free;
 end;
 
@@ -148,7 +163,7 @@ end;
 
 function TTCPSocket.GetRemoteAddress: string;
 begin
-  Result:=Socket.RemoteAddress;
+  Result:=FRemoteAddress;
 end;
 
 function TTCPSocket.GetLocalHost: string;
@@ -173,7 +188,10 @@ end;
 
 function TTCPSocket.Send(const Buf; Count: Integer): Integer;
 begin
-  Result:=Socket.Send(Buf,Count);
+  try
+    Result:=Socket.Send(Buf,Count);
+  except on E: Exception do DoHandleException(E);
+  end;
 end;
 
 procedure TTCPSocket.Disconnect;
@@ -252,21 +270,41 @@ type
 procedure TTCPSocket.DoConnect(const NetEndpoint: TNetEndpoint; Accepted: Boolean);
 begin
 
-  TTask.Run(
+  DoLog('TTCPSocket.DoConnect('+Name+') Enter');
+
+//  DoLog('TThreadPoolStats.Default.WorkerThreadCount='+TThreadPoolStats.Default.WorkerThreadCount.ToString);
+
+//  TTask.Run(
+  TThread.CreateAnonymousThread(
 
   procedure
   var
     Lost: Boolean;
     Lock: ILock;
+    AName: string;
   begin
+
+    DoLog('TTCPSocket.DoConnect('+Name+') TTask.Run()');
+
+    if FLock=nil then Exit;
+
+    AName:=Name;
 
     Lock:=FLock;
 
+    DoLog('TTCPSocket.DoConnect('+AName+') Before Lock.Enter');
+
     Lock.Enter;
+
+    DoLog('TTCPSocket.DoConnect('+AName+') After Lock.Enter');
 
     try
 
-      if not Accepted then Socket.Connect(NetEndpoint);
+      if not Accepted then
+      begin
+        Socket.Connect(NetEndpoint);
+        FRemoteAddress:=Socket.RemoteAddress;
+      end;
 
       TThread.Synchronize(SyncThread,
 
@@ -280,6 +318,8 @@ begin
 
       while not Lost and Connected do
       begin
+
+        DoLog('TTCPSocket.DoConnect('+AName+') Wait receive data');
 
         {$IFDEF POSIX}
         if TSocketAccess(Socket).WaitForData(250)=wrTimeout then Continue;
@@ -314,6 +354,8 @@ begin
       on E: Exception do DoHandleException(E);
     end;
 
+    DoLog('TTCPSocket.DoConnect('+AName+') Receive loop terminated');
+
     if Connected then
 
     TThread.Synchronize(SyncThread,
@@ -327,10 +369,17 @@ begin
       end;
     end);
 
+    DoLog('TTCPSocket.DoConnect('+AName+') Lock.Leave');
+
     Lock.Leave;
 
-  end);
+  end).Start;
 
+end;
+
+procedure TTCPSocket.DoLog(const S: string);
+begin
+  if Assigned(FOnLog) then FOnLog(S);
 end;
 
 procedure TTCPSocket.DoAfterConnect;
@@ -419,25 +468,17 @@ begin
       while Connected do
       begin
 
-//        {$IFDEF POSIX}
-//        if TSocketAccess(Socket).WaitForData(250)=wrTimeout then Continue;
-//        {$ENDIF}
-//
-//        FAcceptSocket.Free;
-//        FAcceptSocket:=nil;
-//
-//        if Connected then FAcceptSocket:=FSocket.Accept;
-//
-//        if Connected then TThread.Synchronize(SyncThread,DoAccept);
+        {$IFDEF POSIX}
+        if TSocketAccess(Socket).WaitForData(250)=wrTimeout then Continue;
+        {$ELSE}
+        TSocketAccess(Socket).WaitForData;
+        {$ENDIF}
 
-        FAcceptSocket:=FSocket.Accept{$IFDEF POSIX}(250){$ENDIF};
-
-        if Assigned(FAcceptSocket) and Connected then
+        TThread.Synchronize(SyncThread,
+        procedure
         begin
-          TThread.Synchronize(SyncThread,DoAccept);
-          FAcceptSocket.Free;
-          FAcceptSocket:=nil;
-        end;
+          if Connected then DoAccept;
+        end);
 
       end;
 
@@ -464,10 +505,9 @@ begin
 
 end;
 
-function TTCPSocket.GetAcceptSocket(Take: Boolean=True): TSocket;
+function TTCPSocket.Accept: TSocket;
 begin
-  Result:=FAcceptSocket;
-  if Take then FAcceptSocket:=nil;
+  Result:=FSocket.Accept;
 end;
 
 end.

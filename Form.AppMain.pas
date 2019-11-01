@@ -218,10 +218,12 @@ begin
 
   ComboBox1.ItemIndex:=2;
 
-  ComboBox2.Items.Add('185.182.193.15:5555');
   ComboBox2.Items.Add('localhost:5555');
+  ComboBox2.Items.Add('185.182.193.15:5555');
+  ComboBox2.Items.Add('185.182.193.16:5555');
+  ComboBox2.Items.Add('185.182.193.17:5555');
   ComboBox2.Items.Add('190.2.146.26:5555');
-  ComboBox2.ItemIndex:=1;
+  ComboBox2.ItemIndex:=0;
 
   ComboBox3.Items.Add('5555');
   ComboBox3.Items.Add('8080');
@@ -446,7 +448,7 @@ end;
 procedure TForm12.OnTCPServerAccept(Sender: TObject);
 var Client: TTCPSocket;
 begin
-  Client:=TTCPSocket.Create(TCPServer.GetAcceptSocket);
+  Client:=TTCPSocket.Create(TCPServer.Accept);
   Client.OnReceived:=OnTCPServerClientReceived;
   Client.OnClose:=OnTCPServerClientClose;
   Client.OnExcept:=OnTCPServerClientExcept;
@@ -476,7 +478,7 @@ end;
 procedure TForm12.OnHTTPClientsListChange(Sender: TObject; const Client: THTTPServerClient; Action: TCollectionNotification);
 begin
   if Action=TCollectionNotification.cnRemoved then Client.Terminate;
-  if not Application.Terminated then
+  if HTTPClients<>nil then
   Label2.Text:=HTTPClients.Count.ToString;
 end;
 
@@ -519,7 +521,7 @@ end;
 procedure TForm12.OnHTTPAccept(Sender: TObject);
 var Client: THTTPServerClient;
 begin
-  Client:=THTTPServerClient.Create(HTTPServer.GetAcceptSocket);
+  Client:=THTTPServerClient.Create(HTTPServer.Accept);
   Client.OnClose:=OnHTTPClientClose;
   Client.OnRequest:=OnHTTPRequest;
   Client.OnExcept:=OnHTTPClientExcept;
