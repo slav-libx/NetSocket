@@ -6,7 +6,6 @@ uses
   System.Types,
   System.SysUtils,
   System.Classes,
-  System.Threading,
   System.SyncObjs,
   System.Net.Socket,
   System.Net.URLClient;
@@ -41,6 +40,7 @@ type
     function GetRemoteAddress: string;
     function GetLocalHost: string;
     function GetHostAddress: string;
+    procedure Run(Proc: TProc);
   protected
     procedure DoConnect(const NetEndpoint: TNetEndpoint; Accepted: Boolean);
     procedure DoAfterConnect; virtual;
@@ -148,7 +148,13 @@ end;
 procedure TTCPSocket.Terminate;
 begin
   FLock:=nil;
-  Disconnect; // иначе будет вызов Close(False) для сервера
+  Disconnect; // else call Close(False) for server
+end;
+
+procedure TTCPSocket.Run(Proc: TProc);
+begin
+  //TTask.Run(Proc);
+  TThread.CreateAnonymousThread(Proc).Start;
 end;
 
 function TTCPSocket.GetAddress: string;
@@ -214,7 +220,7 @@ end;
 procedure TTCPSocket.Connect(const Address: string; Port: Word);
 begin
 
-  TTask.Run(
+  Run(
 
   procedure
   var NetEndpoint: TNetEndpoint;
@@ -272,10 +278,7 @@ begin
 
   DoLog('TTCPSocket.DoConnect('+Name+') Enter');
 
-//  DoLog('TThreadPoolStats.Default.WorkerThreadCount='+TThreadPoolStats.Default.WorkerThreadCount.ToString);
-
-//  TTask.Run(
-  TThread.CreateAnonymousThread(
+  Run(
 
   procedure
   var
@@ -284,7 +287,7 @@ begin
     AName: string;
   begin
 
-    DoLog('TTCPSocket.DoConnect('+Name+') TTask.Run()');
+    DoLog('TTCPSocket.DoConnect('+Name+') Run()');
 
     if FLock=nil then Exit;
 
@@ -292,11 +295,11 @@ begin
 
     Lock:=FLock;
 
-    DoLog('TTCPSocket.DoConnect('+AName+') Before Lock.Enter');
+    DoLog('TTCPSocket.DoConnect('+AName+') Lock.Enter Before');
 
     Lock.Enter;
 
-    DoLog('TTCPSocket.DoConnect('+AName+') After Lock.Enter');
+    DoLog('TTCPSocket.DoConnect('+AName+') Lock.Enter After');
 
     try
 
@@ -340,8 +343,8 @@ begin
             Lost:=True;
         end);
 
-        // любые ошибки сокета должны приводить к выходу из цикла чтения данных из сокета
-        // другие ошибки возбуждают исключение в основном потоке приложения
+        // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+        // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
         except
           on E: ESocketError do raise;
@@ -373,7 +376,7 @@ begin
 
     Lock.Leave;
 
-  end).Start;
+  end);
 
 end;
 
@@ -455,7 +458,7 @@ begin
 
     DoConnected;
 
-    TTask.Run(
+    Run(
 
     procedure
     var Lock: ILock;
