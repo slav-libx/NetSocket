@@ -1,4 +1,4 @@
-unit Net.Socket;
+﻿unit Net.Socket;
 
 interface
 
@@ -6,6 +6,7 @@ uses
   System.Types,
   System.SysUtils,
   System.Classes,
+  System.Math,
   System.SyncObjs,
   System.Net.Socket,
   System.Net.URLClient;
@@ -15,6 +16,9 @@ type
   ILock = interface
     procedure Enter;
     procedure Leave;
+    procedure SetTerminated(Value: Boolean);
+    function GetTerminated: Boolean;
+    property Terminated: Boolean read GetTerminated write SetTerminated;
   end;
 
   TTCPSocket = class
@@ -23,6 +27,7 @@ type
     FName: string;
     FRemoteAddress: string;
     FOnConnect: TNotifyEvent;
+    FOnAfterConnect: TNotifyEvent;
     FOnClose: TNotifyEvent;
     FOnAccept: TNotifyEvent;
     FOnReceived: TNotifyEvent;
@@ -34,6 +39,7 @@ type
     FTag: NativeInt;
     FTagObject: TObject;
     FTagString: string;
+    FDisconnecting: Boolean;
     [weak]FSyncThread: TThread;
     function GetHandle: TSocketHandle;
     function GetAddress: string;
@@ -67,7 +73,9 @@ type
     function Accept: TSocket;
     function Receive: TBytes;
     function ReceiveString: string;
-    function Send(const Buf; Count: Integer): Integer;
+    function Send(const Buf; Count: Integer): Integer; overload;
+    function Send(const Bytes: TBytes): Integer; overload;
+    function Send(const S: string): Integer; overload;
     property Handle: TSocketHandle read GetHandle;
     property Address: string read GetAddress;
     property RemoteAddress: string read GetRemoteAddress;
@@ -80,6 +88,7 @@ type
     property TagString: string read FTagString write FTagString;
     property SyncThread: TThread read FSyncThread write FSyncThread;
     property OnConnect: TNotifyEvent read FOnConnect write FOnConnect;
+    property OnAfterConnect: TNotifyEvent read FOnAfterConnect write FOnAfterConnect;
     property OnClose: TNotifyEvent read FOnClose write FOnClose;
     property OnReceived: TNotifyEvent read FOnReceived write FOnReceived;
     property OnExcept: TNotifyEvent read FOnExcept write FOnExcept;
@@ -89,15 +98,21 @@ type
 
 implementation
 
+const
+  SocketSendError = 'Error sending data: send %d bytes, sending %d bytes';
+
 type
   TLock = class(TInterfacedObject,ILock)
   private
     FLock: TCriticalSection;
+    FTerminated: Boolean;
   public
     constructor Create;
     destructor Destroy; override;
     procedure Enter;
     procedure Leave;
+    procedure SetTerminated(Value: Boolean);
+    function GetTerminated: Boolean;
   end;
 
 constructor TLock.Create;
@@ -119,6 +134,16 @@ end;
 procedure TLock.Leave;
 begin
   FLock.Leave;
+end;
+
+function TLock.GetTerminated: Boolean;
+begin
+  Result:=FTerminated;
+end;
+
+procedure TLock.SetTerminated(Value: Boolean);
+begin
+  FTerminated:=Value;
 end;
 
 var NameID: Integer=0;
@@ -147,13 +172,13 @@ end;
 
 procedure TTCPSocket.Terminate;
 begin
+  if Assigned(FLock) then FLock.Terminated:=True;
   FLock:=nil;
   Disconnect; // else call Close(False) for server
 end;
 
 procedure TTCPSocket.Run(Proc: TProc);
 begin
-  //TTask.Run(Proc);
   TThread.CreateAnonymousThread(Proc).Start;
 end;
 
@@ -189,26 +214,61 @@ end;
 
 function TTCPSocket.ReceiveString: string;
 begin
-  Result:=Socket.ReceiveString;
+  Result:=Socket.Encoding.GetString(Receive);
+end;
+
+function TTCPSocket.Send(const S: string): Integer;
+begin
+  Result:=Send(Socket.Encoding.GetBytes(S));
+end;
+
+function TTCPSocket.Send(const Bytes: TBytes): Integer;
+begin
+  Result:=Send(Bytes[0],Length(Bytes));
 end;
 
 function TTCPSocket.Send(const Buf; Count: Integer): Integer;
+//var ResultCount,SendCount: Integer; P: Pointer;
 begin
+
   try
     Result:=Socket.Send(Buf,Count);
-  except on E: Exception do DoHandleException(E);
+    if Result<>Count then raise Exception.CreateFmt(SocketSendError,[Count,Result]);
+  except on E: Exception do
+    DoHandleException(E);
   end;
+
+//  try
+//    Result:=0;
+//    while Result<>Count do
+//    begin
+//      SendCount:=Min(1024*1,Count-Result);
+//      P:=Pointer(Integer(@Buf)+Result);
+//      ResultCount:=Socket.Send(P^,SendCount);
+//      if ResultCount<>SendCount then
+//        raise ESocketError.CreateFmt(SocketSendError,[SendCount,ResultCount]);
+//      Result:=Result+SendCount;
+//    end;
+//  except on E: Exception do
+//    DoHandleException(E);
+//  end;
+
 end;
 
 procedure TTCPSocket.Disconnect;
 begin
   if TSocketState.Connected in Socket.State then
+  try
+    FDisconnecting:=True;
     Socket.Close(FCloseForce);
+  finally
+    FDisconnecting:=False;
+  end;
 end;
 
 function TTCPSocket.Connected: Boolean;
 begin
-  Result:=Assigned(FLock) and Assigned(FSocket) and (TSocketState.Connected in Socket.State);
+  Result:=Assigned(FLock) and Assigned(FSocket) and not FDisconnecting and (TSocketState.Connected in Socket.State);
 end;
 
 function CompareEndpoints(const EndPoint1,EndPoint2: TNetEndpoint): Boolean;
@@ -282,7 +342,6 @@ begin
 
   procedure
   var
-    Lost: Boolean;
     Lock: ILock;
     AName: string;
   begin
@@ -317,9 +376,7 @@ begin
         DoAfterConnect;
       end);
 
-      Lost:=False;
-
-      while not Lost and Connected do
+      while Connected do
       begin
 
         DoLog('TTCPSocket.DoConnect('+AName+') Wait receive data');
@@ -330,21 +387,24 @@ begin
         TSocketAccess(Socket).WaitForData;
         {$ENDIF}
 
+        if Lock.Terminated then Exit;
+
         if Connected then
 
         try
 
+        if Socket.ReceiveLength=0 then
+          Break
+        else
+
         TThread.Synchronize(SyncThread,
         procedure
         begin
-          if Connected and (Socket.ReceiveLength>0) then
-            DoReceived
-          else
-            Lost:=True;
+          DoReceived;
         end);
 
-        // ����� ������ ������ ������ ��������� � ������ �� ����� ������ ������ �� ������
-        // ������ ������ ���������� ���������� � �������� ������ ����������
+        // любые ошибки сокета должны приводить к выходу из цикла чтения данных из сокета
+        // другие ошибки возбуждают исключение в основном потоке приложения
 
         except
           on E: ESocketError do raise;
@@ -356,6 +416,8 @@ begin
     except
       on E: Exception do DoHandleException(E);
     end;
+
+    if Lock.Terminated then Exit;
 
     DoLog('TTCPSocket.DoConnect('+AName+') Receive loop terminated');
 
@@ -387,6 +449,7 @@ end;
 
 procedure TTCPSocket.DoAfterConnect;
 begin
+  if Assigned(FOnAfterConnect) then FOnAfterConnect(Self);
 end;
 
 procedure TTCPSocket.DoConnected;

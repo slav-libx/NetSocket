@@ -91,15 +91,13 @@ end;
 
 procedure THTTPClient.DoAfterConnect;
 begin
-  Socket.Send(Request.Compose);
+  Send(Request.Compose);
 end;
 
 procedure THTTPClient.DoReceived;
-var Bytes: TBytes;
 begin
   inherited;
-  Socket.Receive(Bytes);
-  Response.DoRead(Bytes);
+  Response.DoRead(Receive);
 end;
 
 procedure THTTPClient.OnReadComplete(Sender: TObject);
@@ -132,11 +130,9 @@ begin
 end;
 
 procedure THTTPServerClient.DoReceived;
-var Bytes: TBytes;
 begin
   inherited;
-  Socket.Receive(Bytes);
-  Request.DoRead(Bytes);
+  Request.DoRead(Receive);
 end;
 
 procedure THTTPServerClient.OnReadComplete(Sender: TObject);
@@ -174,8 +170,8 @@ begin
 
       Response.SetResult(HTTPCODE_METHOD_NOT_ALLOWED,'Method Not Allowed');
 
-  Socket.Send(Response.Compose);
-  Socket.Send(Response.Content,0,Length(Response.Content));
+  Send(Response.Compose);
+  Send(Response.Content);
 
 end;
 
