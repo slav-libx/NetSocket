@@ -229,7 +229,23 @@ end;
 
 function TTCPSocket.Send(const Buf; Count: Integer): Integer;
 //var ResultCount,SendCount: Integer; P: Pointer;
+var B: TBytes;
 begin
+
+//  B:=BytesOf(@Buf,Count);
+//
+//Result:=0;
+//
+//  Run(
+//  procedure
+//  var B1: TBytes;
+//  begin
+//     B1:=B;
+//  try
+//   Socket.Send(B1);
+//  except on E: Exception do
+//    DoHandleException(E);
+//  end;
 
   try
     Result:=Socket.Send(Buf,Count);
@@ -237,6 +253,8 @@ begin
   except on E: Exception do
     DoHandleException(E);
   end;
+
+//  end);
 
 //  try
 //    Result:=0;
@@ -397,11 +415,11 @@ begin
           Break
         else
 
-        TThread.Synchronize(SyncThread,
-        procedure
-        begin
+//        TThread.Synchronize(SyncThread,
+//        procedure
+//        begin
           DoReceived;
-        end);
+//        end);
 
         // любые ошибки сокета должны приводить к выходу из цикла чтения данных из сокета
         // другие ошибки возбуждают исключение в основном потоке приложения
@@ -459,7 +477,11 @@ end;
 
 procedure TTCPSocket.DoReceived;
 begin
-  if Assigned(FOnReceived) then FOnReceived(Self);
+  TThread.Synchronize(SyncThread,
+  procedure
+  begin
+    if Assigned(FOnReceived) then FOnReceived(Self);
+  end);
 end;
 
 procedure TTCPSocket.DoClose;

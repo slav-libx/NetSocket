@@ -96,14 +96,19 @@ end;
 
 procedure THTTPClient.DoReceived;
 begin
-  inherited;
   Response.DoRead(Receive);
+  inherited;
 end;
 
 procedure THTTPClient.OnReadComplete(Sender: TObject);
 begin
   Response.Merge(Request);
-  if Assigned(FOnResponse) then FOnResponse(Self);
+  if Assigned(FOnResponse) then
+  TThread.Synchronize(SyncThread,
+  procedure
+  begin
+    FOnResponse(Self);
+  end);
 end;
 
 { THTTPServerClient }
@@ -131,8 +136,8 @@ end;
 
 procedure THTTPServerClient.DoReceived;
 begin
-  inherited;
   Request.DoRead(Receive);
+  inherited;
 end;
 
 procedure THTTPServerClient.OnReadComplete(Sender: TObject);
@@ -155,10 +160,16 @@ begin
     begin
 
       if Assigned(FOnRequest) then
+      begin
 
-        FOnRequest(Self)
+        if Assigned(FOnRequest) then
+        TThread.Synchronize(SyncThread,
+        procedure
+        begin
+          FOnRequest(Self);
+        end);
 
-      else begin
+      end else begin
 
         Response.SetResult(HTTPCODE_NOT_FOUND,'Not Found');
 
