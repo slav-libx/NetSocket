@@ -228,49 +228,13 @@ begin
 end;
 
 function TTCPSocket.Send(const Buf; Count: Integer): Integer;
-//var ResultCount,SendCount: Integer; P: Pointer;
-var B: TBytes;
 begin
-
-//  B:=BytesOf(@Buf,Count);
-//
-//Result:=0;
-//
-//  Run(
-//  procedure
-//  var B1: TBytes;
-//  begin
-//     B1:=B;
-//  try
-//   Socket.Send(B1);
-//  except on E: Exception do
-//    DoHandleException(E);
-//  end;
-
   try
     Result:=Socket.Send(Buf,Count);
     if Result<>Count then raise Exception.CreateFmt(SocketSendError,[Count,Result]);
   except on E: Exception do
     DoHandleException(E);
   end;
-
-//  end);
-
-//  try
-//    Result:=0;
-//    while Result<>Count do
-//    begin
-//      SendCount:=Min(1024*1,Count-Result);
-//      P:=Pointer(Integer(@Buf)+Result);
-//      ResultCount:=Socket.Send(P^,SendCount);
-//      if ResultCount<>SendCount then
-//        raise ESocketError.CreateFmt(SocketSendError,[SendCount,ResultCount]);
-//      Result:=Result+SendCount;
-//    end;
-//  except on E: Exception do
-//    DoHandleException(E);
-//  end;
-
 end;
 
 procedure TTCPSocket.Disconnect;
