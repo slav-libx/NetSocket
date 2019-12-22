@@ -17,7 +17,7 @@ object Form12: TForm12
     Size.Width = 342.000000000000000000
     Size.Height = 590.000000000000000000
     Size.PlatformDefault = False
-    TabIndex = 3
+    TabIndex = 2
     TabOrder = 3
     TabPosition = PlatformDefault
     Sizes = (
@@ -229,7 +229,7 @@ object Form12: TForm12
       CustomIcon = <
         item
         end>
-      IsSelected = False
+      IsSelected = True
       Size.Width = 79.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
@@ -352,7 +352,7 @@ object Form12: TForm12
       CustomIcon = <
         item
         end>
-      IsSelected = True
+      IsSelected = False
       Size.Width = 81.000000000000000000
       Size.Height = 26.000000000000000000
       Size.PlatformDefault = False
@@ -437,8 +437,8 @@ object Form12: TForm12
         Size.Height = 449.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
-        Viewport.Width = 318.000000000000000000
-        Viewport.Height = 445.000000000000000000
+        Viewport.Width = 322.000000000000000000
+        Viewport.Height = 449.000000000000000000
       end
       object ComboBox4: TComboBox
         Align = Bottom
